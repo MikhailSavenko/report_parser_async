@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from datetime import date as date_doc
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 class Base(DeclarativeBase):
     pass
 
