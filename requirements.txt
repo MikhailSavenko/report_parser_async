@@ -1,0 +1,6 @@
+beautifulsoup4==4.13.3
+aiohttp==3.11.12
+xlrd==2.0.1
+pandas==2.2.3
+sqlalchemy==2.0.38
+asyncpg==0.30.0
