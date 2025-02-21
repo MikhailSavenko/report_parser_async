@@ -4,9 +4,7 @@ services:
   db:
     image: postgres
     container_name: postgres-container
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: report123
-      POSTGRES_DB: db_report
+    env_file:
+      - .env
     ports:
       - 5432:5432
