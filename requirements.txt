@@ -4,3 +4,4 @@ xlrd==2.0.1
 pandas==2.2.3
 sqlalchemy==2.0.38
 asyncpg==0.30.0
+python-dotenv==1.0.1
