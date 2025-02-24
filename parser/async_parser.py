@@ -11,9 +11,7 @@ from http import HTTPStatus
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-urls = {
-        "data": []
-    }
+urls = []
 
 
 def parse_tags(date, links):
@@ -23,10 +21,7 @@ def parse_tags(date, links):
             print("Конец")
             print(urls)
             raise YearComplited
-        urls["data"].append({
-            "urls": link.get("href"),
-            "date": (date[idx])
-        })
+        urls.append(link.get("href"))
     print("Страница спаршена")
     
 
@@ -72,7 +67,7 @@ async def get_urls(url, session_aiohttp):
 async def main():
     async with aiohttp.ClientSession() as session_aiohttp:
         await get_urls(URL_WITH_RESULTS, session_aiohttp)
-        
+
 
 if __name__ == "__main__":
     time0 = time()
