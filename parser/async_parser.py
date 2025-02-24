@@ -21,6 +21,7 @@ def parse_tags(date, links):
             print("Конец")
             print(urls)
             raise YearComplited
+
         urls.append(link.get("href"))
     print("Страница спаршена")
     
@@ -28,10 +29,11 @@ def parse_tags(date, links):
 async def download_xml(url, session_aiohttp):
     download = BASE_DIR / 'download'
     download.mkdir(exist_ok=True)
-    name = url.split('/')[-1]
+    name = url.split('/')[-1].split('?')[0]
     filename = download / name
+    url_full = urljoin(URL_MAIN, url)
 
-    async with session_aiohttp.get(url) as response:
+    async with session_aiohttp.get(url_full) as response:
         if response.status == HTTPStatus.OK:
             content = await response.read()
             with open(filename, mode='wb') as f:
@@ -66,8 +68,12 @@ async def get_urls(url, session_aiohttp):
 
 async def main():
     async with aiohttp.ClientSession() as session_aiohttp:
+        
         await get_urls(URL_WITH_RESULTS, session_aiohttp)
 
+        tasks = [asyncio.create_task(download_xml(url, session_aiohttp)) for url in urls]
+        
+        await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     time0 = time()
