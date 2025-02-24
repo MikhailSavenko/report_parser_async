@@ -6,7 +6,10 @@ import re
 from urllib.parse import urljoin
 from time import time
 from exceptions import YearComplited
+from pathlib import Path
+from http import HTTPStatus
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 urls = {
         "data": []
@@ -25,6 +28,21 @@ def parse_tags(date, links):
             "date": (date[idx])
         })
     print("Страница спаршена")
+    
+
+async def download_xml(url, session_aiohttp):
+    download = BASE_DIR / 'download'
+    download.mkdir(exist_ok=True)
+    name = url.split('/')[-1]
+    filename = download / name
+
+    async with session_aiohttp.get(url) as response:
+        if response.status == HTTPStatus.OK:
+            content = await response.read()
+            with open(filename, mode='wb') as f:
+                f.write(content)
+            return filename
+    return None
 
 
 async def get_urls(url, session_aiohttp):
@@ -54,7 +72,7 @@ async def get_urls(url, session_aiohttp):
 async def main():
     async with aiohttp.ClientSession() as session_aiohttp:
         await get_urls(URL_WITH_RESULTS, session_aiohttp)
-
+        
 
 if __name__ == "__main__":
     time0 = time()
