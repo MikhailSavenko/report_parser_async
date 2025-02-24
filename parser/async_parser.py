@@ -4,7 +4,7 @@ import asyncio
 from constants import URL_WITH_RESULTS, URL_MAIN
 import re
 from urllib.parse import urljoin
-
+from time import time
 
 urls = {
         "data": []
@@ -57,4 +57,7 @@ async def main():
     await get_urls(URL_WITH_RESULTS)
 
 if __name__ == "__main__":
+    time0 = time()
     asyncio.run(main())
+    time_ = round((time() - time0), 2)
+    print(time_)
