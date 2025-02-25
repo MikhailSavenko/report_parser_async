@@ -16,16 +16,13 @@ from db.config import AsyncSessionLocal
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-urls = []
 
-
-def parse_tags(date, links):
+async def parse_tags(date, links, queue: asyncio.Queue):
     for idx, link in enumerate(links):
-        if int(date[idx][6:]) == 2024:
+        if int(date[idx][6:]) == 2023:
             print("Последняя Страница спаршена")
             raise YearComplited
-
-        urls.append(link.get("href"))
+        await queue.put(link.get("href"))
     print("Страница спаршена")
 
 
@@ -58,14 +55,11 @@ async def parse_file(file_path: str, session) -> list[SpimexTradingResult]:
             count=int(rows[14]) if isinstance(rows[4], int) else 0,
             date=date
         )
-        print(new_oil.exchange_product_id)
         session.add(new_oil)
-    print("Перед коммитом")
     await session.commit()
-    print("После коммитом")
 
 
-async def download_xml(url, session_aiohttp):
+async def download_xml(url, session_aiohttp, queue):
     download = BASE_DIR / 'download'
     download.mkdir(exist_ok=True)
     name = url.split('/')[-1].split('?')[0]
@@ -77,11 +71,15 @@ async def download_xml(url, session_aiohttp):
             content = await response.read()
             with open(filename, mode='wb') as f:
                 f.write(content)
+            queue.task_done()
             return filename
+        else:
+            queue.task_done()
+            return None
     return None
 
 
-async def get_urls(url, session_aiohttp):
+async def get_urls(url, session_aiohttp, queue: asyncio.Queue):
     response = await session_aiohttp.get(url)
     html = await response.text()
 
@@ -94,7 +92,7 @@ async def get_urls(url, session_aiohttp):
     links = soup.find_all("a", href=pattern)
 
     try:
-        parse_tags(date, links)
+        await parse_tags(date, links, queue)
     except YearComplited:
         return
 
@@ -102,7 +100,7 @@ async def get_urls(url, session_aiohttp):
     if next_page_tag:
         next_page = next_page_tag.get("href")
         URL = urljoin(URL_MAIN, next_page)
-        await asyncio.create_task(get_urls(URL, session_aiohttp))
+        await asyncio.create_task(get_urls(URL, session_aiohttp, queue))
 
 
 async def parse_file_with_session(file_path):
@@ -111,13 +109,21 @@ async def parse_file_with_session(file_path):
 
 
 async def main():
-    async with aiohttp.ClientSession() as session_aiohttp:
-        
-        await get_urls(URL_WITH_RESULTS, session_aiohttp)
+    queue = asyncio.Queue()
 
-        tasks = [asyncio.create_task(download_xml(url, session_aiohttp)) for url in urls]
-        
+    async with aiohttp.ClientSession() as session_aiohttp:
+
+        await get_urls(URL_WITH_RESULTS, session_aiohttp, queue)
+
+        tasks = []
+        for _ in range(queue.qsize()):
+            url = await queue.get()
+            task = asyncio.create_task(download_xml(url, session_aiohttp, queue))
+            tasks.append(task)
+            
         download_files = await asyncio.gather(*tasks)
+
+        await queue.join()
 
         tasks_files = []
         for file_path in download_files:
