@@ -13,7 +13,6 @@ from datetime import datetime
 from db.models import SpimexTradingResult
 from db.config import AsyncSessionLocal
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -40,9 +39,10 @@ async def parse_file(file_path: str, session) -> list[SpimexTradingResult]:
         rows = res_df.iloc[index].to_list()
         if rows[1] in ('Итого:', 'Итого: ', ' Итого:', 'Итого по секции:'):
             break
+        if pd.isna(rows[4]) or pd.isna(rows[14]) or pd.isna(rows[5]):
+            continue
         if rows[14] == '-':
             continue
-
         new_oil = SpimexTradingResult(
             exchange_product_id=str(rows[1]),
             exchange_product_name=str(rows[2]),
@@ -50,9 +50,9 @@ async def parse_file(file_path: str, session) -> list[SpimexTradingResult]:
             delivery_basis_id=str(rows[1][4:7]),
             delivery_basis_name=str(rows[3]),
             delivery_type_id=str(rows[1][-1]),
-            volume=int(rows[4]) if isinstance(rows[4], int) else 0,
-            total=int(rows[5]) if isinstance(rows[4], int) else 0,
-            count=int(rows[14]) if isinstance(rows[4], int) else 0,
+            volume=int(rows[4]) if rows[4] != "-" else 0,
+            total=int(rows[5]) if rows[5] != "-" else 0,
+            count=int(rows[14]) if rows[14] != "-" else 0,
             date=date
         )
         session.add(new_oil)
@@ -128,7 +128,7 @@ async def main():
         tasks_files = []
         for file_path in download_files:
             tasks_files.append(asyncio.create_task(parse_file_with_session(str(file_path))))
-            await asyncio.gather(*tasks_files)
+        await asyncio.gather(*tasks_files)
 
 
 if __name__ == "__main__":
