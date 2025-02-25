@@ -11,7 +11,7 @@ from http import HTTPStatus
 import pandas as pd
 from datetime import datetime
 from db.models import SpimexTradingResult
-from db.config import get_async_session
+from db.config import AsyncSessionLocal
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,33 +21,32 @@ urls = []
 
 def parse_tags(date, links):
     for idx, link in enumerate(links):
-        if int(date[idx][6:]) == 2023:
+        if int(date[idx][6:]) == 2024:
             print("Последняя Страница спаршена")
-            print("Конец")
-            print(urls)
             raise YearComplited
 
         urls.append(link.get("href"))
     print("Страница спаршена")
 
 
-async def parse_file(file_path, session):
+async def parse_file(file_path: str, session) -> list[SpimexTradingResult]:
     # Получим дату 
     pattern_date = r'oil_xls_(\d{8})'
     match_date = re.search(pattern_date, file_path)
     date_doc = match_date.group(1)
-    
+    date = datetime.strptime(date_doc, '%Y%m%d').date()
+
     df = pd.read_excel(file_path, header=None)
     header_row = df[df.apply(lambda row: row.astype(str).str.contains('Метрическая тонна').any(), axis=1)].index[0]
     res_df = pd.read_excel(file_path, header=header_row+2)
-    date = datetime.strptime(date_doc, '%Y%m%d').date()
-    
+
     for index in range(100000):
         rows = res_df.iloc[index].to_list()
         if rows[1] in ('Итого:', 'Итого: ', ' Итого:', 'Итого по секции:'):
             break
         if rows[14] == '-':
             continue
+
         new_oil = SpimexTradingResult(
             exchange_product_id=rows[1],
             exchange_product_name=rows[2],
@@ -60,9 +59,9 @@ async def parse_file(file_path, session):
             count=rows[14],
             date=date
         )
-        await session.add(new_oil)
+        print(new_oil.exchange_product_id)
+        session.add(new_oil)
     await session.commit()
-    return new_oil
 
 
 async def download_xml(url, session_aiohttp):
@@ -105,6 +104,11 @@ async def get_urls(url, session_aiohttp):
         await asyncio.create_task(get_urls(URL, session_aiohttp))
 
 
+async def parse_file_with_session(file_path):
+    async with AsyncSessionLocal() as session:
+        await parse_file(file_path, session)
+
+
 async def main():
     async with aiohttp.ClientSession() as session_aiohttp:
         
@@ -114,10 +118,11 @@ async def main():
         
         download_files = await asyncio.gather(*tasks)
 
-        async with get_async_session() as session:
-            tasks = [asyncio.create_task(parse_file(file_path, session)) for file_path in download_files]
-
+        tasks_files = []
+        for file_path in download_files:
+            tasks_files.append(asyncio.create_task(parse_file_with_session(str(file_path))))
             await asyncio.gather(*tasks)
+
 
 if __name__ == "__main__":
     time0 = time()
