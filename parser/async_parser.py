@@ -30,7 +30,6 @@ def parse_tags(date, links):
 
 
 async def parse_file(file_path: str, session) -> list[SpimexTradingResult]:
-    # Получим дату 
     pattern_date = r'oil_xls_(\d{8})'
     match_date = re.search(pattern_date, file_path)
     date_doc = match_date.group(1)
@@ -48,20 +47,22 @@ async def parse_file(file_path: str, session) -> list[SpimexTradingResult]:
             continue
 
         new_oil = SpimexTradingResult(
-            exchange_product_id=rows[1],
-            exchange_product_name=rows[2],
-            oil_id=rows[1][:4],
-            delivery_basis_id=rows[1][4:7],
-            delivery_basis_name=rows[3],
-            delivery_type_id=rows[1][-1],
-            volume=rows[4],
-            total=rows[5],
-            count=rows[14],
+            exchange_product_id=str(rows[1]),
+            exchange_product_name=str(rows[2]),
+            oil_id=str(rows[1][:4]),
+            delivery_basis_id=str(rows[1][4:7]),
+            delivery_basis_name=str(rows[3]),
+            delivery_type_id=str(rows[1][-1]),
+            volume=int(rows[4]) if isinstance(rows[4], int) else 0,
+            total=int(rows[5]) if isinstance(rows[4], int) else 0,
+            count=int(rows[14]) if isinstance(rows[4], int) else 0,
             date=date
         )
         print(new_oil.exchange_product_id)
         session.add(new_oil)
+    print("Перед коммитом")
     await session.commit()
+    print("После коммитом")
 
 
 async def download_xml(url, session_aiohttp):
@@ -121,7 +122,7 @@ async def main():
         tasks_files = []
         for file_path in download_files:
             tasks_files.append(asyncio.create_task(parse_file_with_session(str(file_path))))
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks_files)
 
 
 if __name__ == "__main__":
