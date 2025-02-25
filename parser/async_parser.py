@@ -13,12 +13,19 @@ from datetime import datetime
 from db.models import SpimexTradingResult
 from db.config import AsyncSessionLocal
 import logging
+from sqlalchemy.exc import SQLAlchemyError
+from pandas.core.frame import DataFrame
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue):
+    """
+    Получаем страницу для парсинга, 'варим суп', получаем теги: дат, ссылок на файлы, следующей страницы
+      url - адресс страницы для парсинга
+      session_aiohttp - aiohttp.ClientSession сессия
+    """
     try:
         response = await session_aiohttp.get(url)
         html = await response.text()
@@ -34,26 +41,29 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
         try:
             await parse_tags(date, links, queue)
         except YearComplited:
-            logging.info("Ссылки на файлы получены.")
+            logging.info("Ссылки на файлы получены. Стоп по году.")
             return
 
         next_page_tag = soup.select_one("li.bx-pag-next a")
         if next_page_tag:
             next_page = next_page_tag.get("href")
             URL = urljoin(URL_MAIN, next_page)
-            
+
             await asyncio.create_task(get_urls(URL, session_aiohttp, queue))
+        else:
+            logging.info("Ссылки на файлы получены. Стоп - больше нет страниц.")
+            return
 
     except aiohttp.ClientError as e:
-        logging.error(f"Ошибка aiohttp при получении {url}: {e}")
+        logging.exception(f"Ошибка aiohttp при получении {url}: {e}")
     except asyncio.TimeoutError:
-        logging.error(f"Тайм-аут при получении {url}")
+        logging.exception(f"Тайм-аут при получении {url}")
     except AttributeError as e:
-        logging.error(f"Ошибка BeautifulSoup при парсинге {url}: {e}")
-    except re.error as e:
-        logging.error(f"Ошибка регулярного выражения при парсинге {url}: {e}")
+        logging.exception(f"Ошибка BeautifulSoup при парсинге {url}: {e}")
+    except re.exception as e:
+        logging.exception(f"Ошибка регулярного выражения при парсинге {url}: {e}")
     except Exception as e:
-        logging.error(f"Неизвестная ошибка при получении {url}: {e}")
+        logging.exception(f"Неизвестная ошибка при получении {url}: {e}")
 
 
 async def parse_tags(date: list, links: list, queue: asyncio.Queue):
@@ -75,24 +85,41 @@ async def parse_tags(date: list, links: list, queue: asyncio.Queue):
         logging.exception("Ошибка: Индексы в списках date и links не совпадают.")
 
 
-async def download_xml(url, session_aiohttp, queue):
+async def download_xml(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue) -> str:
+    """Скачиваем файлы по url"""
     download = BASE_DIR / 'download'
-    download.mkdir(exist_ok=True)
-    name = url.split('/')[-1].split('?')[0]
-    filename = download / name
-    url_full = urljoin(URL_MAIN, url)
-
-    async with session_aiohttp.get(url_full) as response:
-        if response.status == HTTPStatus.OK:
-            content = await response.read()
-            with open(filename, mode='wb') as f:
-                f.write(content)
-            queue.task_done()
-            return filename
-        else:
+    try:
+        download.mkdir(exist_ok=True)
+        name = url.split('/')[-1].split('?')[0]
+        filename = download / name
+        url_full = urljoin(URL_MAIN, url)
+        try:
+            async with session_aiohttp.get(url_full) as response:
+                if response.status == HTTPStatus.OK:
+                    content = await response.read()
+                    with open(filename, mode='wb') as f:
+                        f.write(content)
+                    queue.task_done()
+                    return str(filename)
+                else:
+                    queue.task_done()
+                    return None
+        except aiohttp.ClientError as e:
+            logging.error(f"Ошибка aiohttp при скачивании {url_full}: {e}")
             queue.task_done()
             return None
-    return None
+        except asyncio.TimeoutError:
+            logging.error(f"Тайм-аут при скачивании {url_full}")
+            queue.task_done()
+            return None
+    except (OSError, FileNotFoundError, PermissionError) as e:
+        logging.error(f"Ошибка файловой системы при скачивании {url}: {e}")
+        queue.task_done()
+        return None
+    except Exception as e:
+        logging.error(f"Неизвестная ошибка при скачивании {url}: {e}")
+        queue.task_done()
+        return None
 
 
 async def parse_file(file_path: str):
@@ -124,33 +151,46 @@ async def parse_file(file_path: str):
 
 
 async def save_data_to_db(data):
+    """Открываем сессии для работы с БД"""
     async with AsyncSessionLocal() as session:
         await save_in_db(data[0], data[1], session)
 
-    
-async def save_in_db(date, res_df, session):
-    for index in range(100000):
-        rows = res_df.iloc[index].to_list()
-        if rows[1] in ('Итого:', 'Итого: ', ' Итого:', 'Итого по секции:'):
-            break
-        if pd.isna(rows[4]) or pd.isna(rows[14]) or pd.isna(rows[5]):
-            continue
-        if rows[14] == '-':
-            continue
-        new_oil = SpimexTradingResult(
-            exchange_product_id=str(rows[1]),
-            exchange_product_name=str(rows[2]),
-            oil_id=str(rows[1][:4]),
-            delivery_basis_id=str(rows[1][4:7]),
-            delivery_basis_name=str(rows[3]),
-            delivery_type_id=str(rows[1][-1]),
-            volume=int(rows[4]) if rows[4] != "-" else 0,
-            total=int(rows[5]) if rows[5] != "-" else 0,
-            count=int(rows[14]) if rows[14] != "-" else 0,
-            date=date
-        )
-        session.add(new_oil)
-    await session.commit()
+
+async def save_in_db(date: datetime.date, res_df: DataFrame, session):
+    """
+    Создаем объект SpimexTradingResult и его сохраняем в базу данных
+      date - дата файла
+      res_df - DataFrame c данными из таблицы(файла)
+    """
+    try:
+        for index in range(100000):
+            rows = res_df.iloc[index].to_list()
+            if rows[1] in ('Итого:', 'Итого: ', ' Итого:', 'Итого по секции:'):
+                break
+            if pd.isna(rows[4]) or pd.isna(rows[14]) or pd.isna(rows[5]):
+                continue
+            if rows[14] == '-':
+                continue
+            new_oil = SpimexTradingResult(
+                exchange_product_id=str(rows[1]),
+                exchange_product_name=str(rows[2]),
+                oil_id=str(rows[1][:4]),
+                delivery_basis_id=str(rows[1][4:7]),
+                delivery_basis_name=str(rows[3]),
+                delivery_type_id=str(rows[1][-1]),
+                volume=int(rows[4]) if rows[4] != "-" else 0,
+                total=int(rows[5]) if rows[5] != "-" else 0,
+                count=int(rows[14]) if rows[14] != "-" else 0,
+                date=date
+            )
+            session.add(new_oil)
+        await session.commit()
+    except SQLAlchemyError as e:
+        session.rollback()
+        logging.error(f"Ошибка SQLAlchemy при сохранении объекта в базу данных: {e}")
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Ошибка при сохранении объекта в базу данных {e}")
 
 
 async def main():
@@ -172,7 +212,7 @@ async def main():
 
         tasks_files = []
         for file_path in download_files:
-            tasks_files.append(asyncio.create_task(parse_file(str(file_path))))
+            tasks_files.append(asyncio.create_task(parse_file(file_path)))
 
         data_to_save = await asyncio.gather(*tasks_files)
 
