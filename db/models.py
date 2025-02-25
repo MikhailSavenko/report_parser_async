@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from datetime import date as date_doc
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import String, DateTime, Date
 
 
 class Base(DeclarativeBase):
@@ -12,15 +13,15 @@ class SpimexTradingResult(Base):
     __tablename__ = 'spimex_trading_results'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    exchange_product_id: Mapped[str] = mapped_column()
-    exchange_product_name: Mapped[str] = mapped_column()
-    oil_id: Mapped[str] = mapped_column()
-    delivery_basis_id: Mapped[str] = mapped_column()
-    delivery_type_id: Mapped[str] = mapped_column()
-    delivery_basis_name: Mapped[str] = mapped_column()
+    exchange_product_id: Mapped[str] = mapped_column(String(255))
+    exchange_product_name: Mapped[str] = mapped_column(String(255))
+    oil_id: Mapped[str] = mapped_column(String(255))
+    delivery_basis_id: Mapped[str] = mapped_column(String(255))
+    delivery_type_id: Mapped[str] = mapped_column(String(255))
+    delivery_basis_name: Mapped[str] = mapped_column(String(255))
     volume: Mapped[int] = mapped_column()
     total: Mapped[int] = mapped_column()
     count: Mapped[int] = mapped_column()
-    date: Mapped[date_doc] = mapped_column()
-    created_on: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
-    updated_on: Mapped[datetime] = mapped_column(default=None, nullable=True)
+    date: Mapped[date_doc] = mapped_column(Date)
+    created_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
