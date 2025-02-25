@@ -18,28 +18,42 @@ import logging
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-async def get_urls(url, session_aiohttp, queue: asyncio.Queue):
-    response = await session_aiohttp.get(url)
-    html = await response.text()
-
-    soup = BeautifulSoup(html, features="lxml")
-
-    pattern = re.compile(r"/upload/reports/oil_xls/.*\.xls")
-    pattern_date = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
-
-    date = soup.find_all(string=pattern_date)[:10]
-    links = soup.find_all("a", href=pattern)
-
+async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue):
     try:
-        await parse_tags(date, links, queue)
-    except YearComplited:
-        return
+        response = await session_aiohttp.get(url)
+        html = await response.text()
 
-    next_page_tag = soup.select_one("li.bx-pag-next a")
-    if next_page_tag:
-        next_page = next_page_tag.get("href")
-        URL = urljoin(URL_MAIN, next_page)
-        await asyncio.create_task(get_urls(URL, session_aiohttp, queue))
+        soup = BeautifulSoup(html, features="lxml")
+
+        pattern = re.compile(r"/upload/reports/oil_xls/.*\.xls")
+        pattern_date = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
+
+        date = soup.find_all(string=pattern_date)[:10]
+        links = soup.find_all("a", href=pattern)
+
+        try:
+            await parse_tags(date, links, queue)
+        except YearComplited:
+            logging.info("Ссылки на файлы получены.")
+            return
+
+        next_page_tag = soup.select_one("li.bx-pag-next a")
+        if next_page_tag:
+            next_page = next_page_tag.get("href")
+            URL = urljoin(URL_MAIN, next_page)
+            
+            await asyncio.create_task(get_urls(URL, session_aiohttp, queue))
+
+    except aiohttp.ClientError as e:
+        logging.error(f"Ошибка aiohttp при получении {url}: {e}")
+    except asyncio.TimeoutError:
+        logging.error(f"Тайм-аут при получении {url}")
+    except AttributeError as e:
+        logging.error(f"Ошибка BeautifulSoup при парсинге {url}: {e}")
+    except re.error as e:
+        logging.error(f"Ошибка регулярного выражения при парсинге {url}: {e}")
+    except Exception as e:
+        logging.error(f"Неизвестная ошибка при получении {url}: {e}")
 
 
 async def parse_tags(date: list, links: list, queue: asyncio.Queue):
