@@ -1,6 +1,5 @@
-import aiohttp
 from bs4 import BeautifulSoup
-import asyncio
+import requests
 from .constants import URL_WITH_RESULTS, URL_MAIN
 import re
 from urllib.parse import urljoin
@@ -11,16 +10,17 @@ from http import HTTPStatus
 import pandas as pd
 from datetime import datetime
 from db.models import SpimexTradingResult
-from db.aconfig import AsyncSessionLocal
+from db.config import SessionLocal
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from pandas.core.frame import DataFrame
 from .configs import configure_argument_parser, configure_logging
+from queue import Queue
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue, year_stop: int):
+def get_urls(url, queue: Queue, year_stop: int):
     """
     Получаем страницу для парсинга, 'варим суп', получаем теги: дат, ссылок на файлы, следующей страницы
       url - адресс страницы для парсинга
@@ -28,8 +28,8 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
       year_stop - год давности файлов, передается в parse_tags
     """
     try:
-        response = await session_aiohttp.get(url)
-        html = await response.text()
+        response = requests.get(url)
+        html = response.text
 
         soup = BeautifulSoup(html, features="lxml")
 
@@ -40,7 +40,7 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
         links = soup.find_all("a", href=pattern)
 
         try:
-            await parse_tags(date, links, queue, year_stop)
+            parse_tags(date, links, queue, year_stop)
         except YearComplited:
             logging.info("Ссылки на файлы получены. Стоп по году.")
             return
@@ -50,15 +50,11 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
             next_page = next_page_tag.get("href")
             URL = urljoin(URL_MAIN, next_page)
 
-            await asyncio.create_task(get_urls(URL, session_aiohttp, queue, year_stop))
+            get_urls(URL, queue, year_stop)
         else:
             logging.info("Ссылки на файлы получены. Стоп - больше нет страниц.")
             return
 
-    except aiohttp.ClientError as e:
-        logging.exception(f"Ошибка aiohttp при получении {url}: {e}")
-    except asyncio.TimeoutError:
-        logging.exception(f"Тайм-аут при получении {url}")
     except AttributeError as e:
         logging.exception(f"Ошибка BeautifulSoup при парсинге {url}: {e}")
     except re.error as e:
@@ -67,7 +63,7 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
         logging.exception(f"Неизвестная ошибка при получении {url}: {e}")
 
 
-async def parse_tags(date: list, links: list, queue: asyncio.Queue, year_stop: int):
+def parse_tags(date: list, links: list, queue: Queue, year_stop: int):
     """
     Достаем url для скачивания файла
       date - спиcок дат на странице
@@ -78,7 +74,7 @@ async def parse_tags(date: list, links: list, queue: asyncio.Queue, year_stop: i
         for idx, link in enumerate(links):
             if int(date[idx][6:]) == year_stop:
                 raise YearComplited
-            await queue.put(link.get("href"))
+            queue.put(link.get("href"))
     except YearComplited:
         raise
     except ValueError:
@@ -87,7 +83,7 @@ async def parse_tags(date: list, links: list, queue: asyncio.Queue, year_stop: i
         logging.exception("Ошибка: Индексы в списках date и links не совпадают.")
 
 
-async def download_xml(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue) -> str:
+def download_xml(url, queue: Queue) -> str:
     """Скачиваем файлы по url"""
     download = BASE_DIR / 'download'
     try:
@@ -96,35 +92,35 @@ async def download_xml(url, session_aiohttp: aiohttp.ClientSession, queue: async
         filename = download / name
         url_full = urljoin(URL_MAIN, url)
         try:
-            async with session_aiohttp.get(url_full) as response:
-                if response.status == HTTPStatus.OK:
-                    content = await response.read()
-                    with open(filename, mode='wb') as f:
-                        f.write(content)
-                    queue.task_done()
-                    return str(filename)
-                else:
-                    queue.task_done()
-                    return None
-        except aiohttp.ClientError as e:
-            logging.error(f"Ошибка aiohttp при скачивании {url_full}: {e}")
+            response = requests.get(url_full, timeout=30)
+            if response.status_code == HTTPStatus.OK:
+                content = response.content
+                with open(filename, mode='wb') as f:
+                    f.write(content)
+                queue.task_done()
+                return str(filename)
+            else:
+                queue.task_done()
+                return None
+        except requests.Timeout:
+            logging.exception(f"Таймаут при скачивании {url_full}")
             queue.task_done()
             return None
-        except asyncio.TimeoutError:
-            logging.error(f"Тайм-аут при скачивании {url_full}")
+        except requests.RequestException as e:
+            logging.exception(f"Ошибка requests при скачивании {url_full}: {str(e)}")
             queue.task_done()
             return None
     except (OSError, FileNotFoundError, PermissionError) as e:
-        logging.error(f"Ошибка файловой системы при скачивании {url}: {e}")
+        logging.exception(f"Ошибка файловой системы при скачивании {url}: {e}")
         queue.task_done()
         return None
     except Exception as e:
-        logging.error(f"Неизвестная ошибка при скачивании {url}: {e}")
+        logging.exception(f"Неизвестная ошибка при скачивании {url}: {e}")
         queue.task_done()
         return None
 
 
-async def parse_file(file_path: str):
+def parse_file(file_path: str):
     """
     Достаем данные из файла для записи в БД
       file_path - путь к файлу
@@ -152,13 +148,7 @@ async def parse_file(file_path: str):
         logging.exception(f"Ошибка при парсинге файлов в {file_path}: {e}", stack_info=True)
 
 
-async def save_data_to_db(data):
-    """Открываем сессии для работы с БД"""
-    async with AsyncSessionLocal() as session:
-        await save_in_db(data[0], data[1], session)
-
-
-async def save_in_db(date: datetime.date, res_df: DataFrame, session):
+def save_in_db(date: datetime.date, res_df: DataFrame, session):
     """
     Создаем объект SpimexTradingResult и его сохраняем в базу данных
       date - дата файла
@@ -186,7 +176,7 @@ async def save_in_db(date: datetime.date, res_df: DataFrame, session):
                 date=date
             )
             session.add(new_oil)
-        await session.commit()
+        session.commit()
     except SQLAlchemyError as e:
         session.rollback()
         logging.error(f"Ошибка SQLAlchemy при сохранении объекта в базу данных: {e}")
@@ -195,40 +185,32 @@ async def save_in_db(date: datetime.date, res_df: DataFrame, session):
         logging.error(f"Ошибка при сохранении объекта в базу данных {e}")
 
 
-async def main(year_stop):
-    queue = asyncio.Queue()
+def main(year_stop):
+    queue = Queue()
 
-    async with aiohttp.ClientSession() as session_aiohttp:
+    get_urls(URL_WITH_RESULTS, queue, year_stop)
+    download_files = []
+    for _ in range(queue.qsize()):
+        url = queue.get()
+        file = download_xml(url, queue)
+        download_files.append(file)
 
-        await get_urls(URL_WITH_RESULTS, session_aiohttp, queue, year_stop)
-
-        tasks = []
-        for _ in range(queue.qsize()):
-            url = await queue.get()
-            task = asyncio.create_task(download_xml(url, session_aiohttp, queue))
-            tasks.append(task)
-            
-        download_files = await asyncio.gather(*tasks)
-
-        await queue.join()
-
-        tasks_files = []
-        for file_path in download_files:
-            tasks_files.append(asyncio.create_task(parse_file(file_path)))
-
-        data_to_save = await asyncio.gather(*tasks_files)
-
-        tasks_save = []
-        for data in data_to_save:
-            if data is None:
-                continue
-            tasks_save.append(asyncio.create_task(save_data_to_db(data)))
-        await asyncio.gather(*tasks_save)
+    data_to_save = []
+    for file_path in download_files:
+        data = parse_file(file_path)
+        data_to_save.append(data)
+                           
+    for data in data_to_save:
+        if data is None:
+            continue
+        # Сессия не ассинхронная для postgresql
+        with SessionLocal() as session:
+            save_in_db(data[0], data[1], session)
         
 
 if __name__ == "__main__":
     configure_logging()
-    logging.info("Асинхронный парсер запущен!")
+    logging.info("Синхронный парсер запущен!")
     arg_parse = configure_argument_parser()
     args = arg_parse.parse_args()
     year_stop = args.year_stop
@@ -237,6 +219,6 @@ if __name__ == "__main__":
 
     time0 = time()
     logging.info("Начался парсинг..")
-    asyncio.run(main(year_stop))
+    main(year_stop)
     time_ = round((time() - time0), 2)
     logging.info(f"Парсинг завершен время затраченое на работу {time_}")
