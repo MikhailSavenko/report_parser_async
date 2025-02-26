@@ -1,6 +1,8 @@
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import logging
+import argparse
+
 
 LOG_FORMAT = '"%(asctime)s - [%(levelname)s] - %(message)s"'
 DT_FORMAT = '%d.%m.%Y %H:%M:%S'
@@ -22,3 +24,10 @@ def configure_logging():
         datefmt=DT_FORMAT,
         handlers=(rotating_heandler, logging.StreamHandler())
     )
+
+
+def configure_argument_parser():
+    """Запуск парсера из терминала"""
+    parser = argparse.ArgumentParser(description="Парсер 'Бюллетени по итогам торгов Нефтепродуктов'")
+    parser.add_argument("-y", "--year_stop", default=2023, type=int, help="Год давности бюллетеней. До какого года парсить бюллетени.")
+    return parser

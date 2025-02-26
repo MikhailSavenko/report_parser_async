@@ -15,16 +15,17 @@ from db.config import AsyncSessionLocal
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from pandas.core.frame import DataFrame
-
+from .configs import configure_argument_parser, configure_logging
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue):
+async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue, year_stop: int):
     """
     Получаем страницу для парсинга, 'варим суп', получаем теги: дат, ссылок на файлы, следующей страницы
       url - адресс страницы для парсинга
       session_aiohttp - aiohttp.ClientSession сессия
+      year_stop - год давности файлов, передается в parse_tags
     """
     try:
         response = await session_aiohttp.get(url)
@@ -39,7 +40,7 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
         links = soup.find_all("a", href=pattern)
 
         try:
-            await parse_tags(date, links, queue)
+            await parse_tags(date, links, queue, year_stop)
         except YearComplited:
             logging.info("Ссылки на файлы получены. Стоп по году.")
             return
@@ -49,7 +50,7 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
             next_page = next_page_tag.get("href")
             URL = urljoin(URL_MAIN, next_page)
 
-            await asyncio.create_task(get_urls(URL, session_aiohttp, queue))
+            await asyncio.create_task(get_urls(URL, session_aiohttp, queue, year_stop))
         else:
             logging.info("Ссылки на файлы получены. Стоп - больше нет страниц.")
             return
@@ -60,21 +61,22 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
         logging.exception(f"Тайм-аут при получении {url}")
     except AttributeError as e:
         logging.exception(f"Ошибка BeautifulSoup при парсинге {url}: {e}")
-    except re.exception as e:
+    except re.error as e:
         logging.exception(f"Ошибка регулярного выражения при парсинге {url}: {e}")
     except Exception as e:
         logging.exception(f"Неизвестная ошибка при получении {url}: {e}")
 
 
-async def parse_tags(date: list, links: list, queue: asyncio.Queue):
+async def parse_tags(date: list, links: list, queue: asyncio.Queue, year_stop: int):
     """
     Достаем url для скачивания файла
       date - спиcок дат на странице
       links - список тега ссылок на файлы
+      year_stop - год давности файлов
     """
     try:
         for idx, link in enumerate(links):
-            if int(date[idx][6:]) == 2023:
+            if int(date[idx][6:]) == year_stop:
                 raise YearComplited
             await queue.put(link.get("href"))
     except YearComplited:
@@ -193,12 +195,12 @@ async def save_in_db(date: datetime.date, res_df: DataFrame, session):
         logging.error(f"Ошибка при сохранении объекта в базу данных {e}")
 
 
-async def main():
+async def main(year_stop):
     queue = asyncio.Queue()
 
     async with aiohttp.ClientSession() as session_aiohttp:
 
-        await get_urls(URL_WITH_RESULTS, session_aiohttp, queue)
+        await get_urls(URL_WITH_RESULTS, session_aiohttp, queue, year_stop)
 
         tasks = []
         for _ in range(queue.qsize()):
@@ -225,7 +227,16 @@ async def main():
         
 
 if __name__ == "__main__":
+    configure_logging()
+    logging.info("Парсер запущен! Введите год до которого требуется спарсить данные")
+    arg_parse = configure_argument_parser()
+    args = arg_parse.parse_args()
+    year_stop = args.year_stop
+    
+    logging.info(f"Данные будут загружаться до {year_stop} года.")
+
     time0 = time()
-    asyncio.run(main())
+    logging.info("Начался парсинг..")
+    asyncio.run(main(year_stop))
     time_ = round((time() - time0), 2)
-    print(time_)
+    logging.info(f"Парсинг завершен время затраченое на работу {time_}")
