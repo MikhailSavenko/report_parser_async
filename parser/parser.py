@@ -221,4 +221,4 @@ if __name__ == "__main__":
     logging.info("Начался парсинг..")
     main(year_stop)
     time_ = round((time() - time0), 2)
-    logging.info(f"Парсинг завершен время затраченое на работу {time_}")
+    logging.info(f"Парсинг завершен время затраченое на работу {time_} секунд.")

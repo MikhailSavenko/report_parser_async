@@ -16,6 +16,8 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from pandas.core.frame import DataFrame
 from .configs import configure_argument_parser, configure_logging
+from typing import Tuple
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -124,7 +126,16 @@ async def download_xml(url, session_aiohttp: aiohttp.ClientSession, queue: async
         return None
 
 
-async def parse_file(file_path: str):
+async def cover_over_parse_file(file_path):
+    """
+    Обертка над методом parse_file. Запускаем в отдельном потоке.
+    file_path - путь к файлу
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, parse_file, file_path)
+
+
+def parse_file(file_path: str) -> Tuple[datetime.date, DataFrame]:
     """
     Достаем данные из файла для записи в БД
       file_path - путь к файлу
@@ -214,7 +225,7 @@ async def main(year_stop):
 
         tasks_files = []
         for file_path in download_files:
-            tasks_files.append(asyncio.create_task(parse_file(file_path)))
+            tasks_files.append(asyncio.create_task(cover_over_parse_file(file_path)))
 
         data_to_save = await asyncio.gather(*tasks_files)
 
@@ -239,4 +250,4 @@ if __name__ == "__main__":
     logging.info("Начался парсинг..")
     asyncio.run(main(year_stop))
     time_ = round((time() - time0), 2)
-    logging.info(f"Парсинг завершен время затраченое на работу {time_}")
+    logging.info(f"Парсинг завершен время затраченое на работу {time_} секунд.")
