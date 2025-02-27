@@ -1,23 +1,25 @@
-import aiohttp
-from bs4 import BeautifulSoup
 import asyncio
-from .constants import URL_WITH_RESULTS, URL_MAIN
-import re
-from urllib.parse import urljoin
-from time import time
-from .exceptions import YearComplited
-from pathlib import Path
-from http import HTTPStatus
-import pandas as pd
-from datetime import datetime
-from db.models import SpimexTradingResult
-from db.aconfig import AsyncSessionLocal
 import logging
-from sqlalchemy.exc import SQLAlchemyError
-from pandas.core.frame import DataFrame
-from .configs import configure_argument_parser, configure_logging
+import re
+from datetime import datetime
+from http import HTTPStatus
+from pathlib import Path
+from time import time
 from typing import Tuple
+from urllib.parse import urljoin
 
+import aiohttp
+import pandas as pd
+from bs4 import BeautifulSoup
+from pandas.core.frame import DataFrame
+from sqlalchemy.exc import SQLAlchemyError
+
+from db.aconfig import AsyncSessionLocal
+from db.models import SpimexTradingResult
+
+from .configs import configure_argument_parser, configure_logging
+from .constants import URL_MAIN, URL_WITH_RESULTS
+from .exceptions import YearComplited
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -91,17 +93,17 @@ async def parse_tags(date: list, links: list, queue: asyncio.Queue, year_stop: i
 
 async def download_xml(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Queue) -> str:
     """Скачиваем файлы по url"""
-    download = BASE_DIR / 'download'
+    download = BASE_DIR / "download"
     try:
         download.mkdir(exist_ok=True)
-        name = url.split('/')[-1].split('?')[0]
+        name = url.split("/")[-1].split("?")[0]
         filename = download / name
         url_full = urljoin(URL_MAIN, url)
         try:
             async with session_aiohttp.get(url_full) as response:
                 if response.status == HTTPStatus.OK:
                     content = await response.read()
-                    with open(filename, mode='wb') as f:
+                    with open(filename, mode="wb") as f:
                         f.write(content)
                     queue.task_done()
                     return str(filename)
@@ -141,16 +143,16 @@ def parse_file(file_path: str) -> Tuple[datetime.date, DataFrame]:
       file_path - путь к файлу
     """
     try:
-        pattern_date = r'oil_xls_(\d{8})'
+        pattern_date = r"oil_xls_(\d{8})"
         match_date = re.search(pattern_date, file_path)
         if not match_date:
             logging.info(f"Не удалось извлечь дату из имени файла {file_path}")
             return None
         date_doc = match_date.group(1)
-        date = datetime.strptime(date_doc, '%Y%m%d').date()
-        
+        date = datetime.strptime(date_doc, "%Y%m%d").date()
+
         df = pd.read_excel(file_path, header=None)
-        mathed_row = df[df.apply(lambda row: row.astype(str).str.contains('Метрическая тонна').any(), axis=1)].index
+        mathed_row = df[df.apply(lambda row: row.astype(str).str.contains("Метрическая тонна").any(), axis=1)].index
         if mathed_row.empty:
             logging.info(f"Ошибка: 'Метрическая тонна' не найдена в файле {file_path}")
             return None
@@ -158,7 +160,7 @@ def parse_file(file_path: str) -> Tuple[datetime.date, DataFrame]:
 
         res_df = pd.read_excel(file_path, header=header_row + 2)
         return date, res_df
-    
+
     except Exception as e:
         logging.exception(f"Ошибка при парсинге файлов в {file_path}: {e}", stack_info=True)
 
@@ -178,11 +180,11 @@ async def save_in_db(date: datetime.date, res_df: DataFrame, session):
     try:
         for index in range(100000):
             rows = res_df.iloc[index].to_list()
-            if rows[1] in ('Итого:', 'Итого: ', ' Итого:', 'Итого по секции:'):
+            if rows[1] in ("Итого:", "Итого: ", " Итого:", "Итого по секции:"):
                 break
             if pd.isna(rows[4]) or pd.isna(rows[14]) or pd.isna(rows[5]):
                 continue
-            if rows[14] == '-':
+            if rows[14] == "-":
                 continue
             new_oil = SpimexTradingResult(
                 exchange_product_id=str(rows[1]),
@@ -194,7 +196,7 @@ async def save_in_db(date: datetime.date, res_df: DataFrame, session):
                 volume=int(rows[4]) if rows[4] != "-" else 0,
                 total=int(rows[5]) if rows[5] != "-" else 0,
                 count=int(rows[14]) if rows[14] != "-" else 0,
-                date=date
+                date=date,
             )
             session.add(new_oil)
         await session.commit()
@@ -218,7 +220,7 @@ async def main(year_stop):
             url = await queue.get()
             task = asyncio.create_task(download_xml(url, session_aiohttp, queue))
             tasks.append(task)
-            
+
         download_files = await asyncio.gather(*tasks)
 
         await queue.join()
@@ -235,7 +237,7 @@ async def main(year_stop):
                 continue
             tasks_save.append(asyncio.create_task(save_data_to_db(data)))
         await asyncio.gather(*tasks_save)
-        
+
 
 if __name__ == "__main__":
     configure_logging()
@@ -243,7 +245,7 @@ if __name__ == "__main__":
     arg_parse = configure_argument_parser()
     args = arg_parse.parse_args()
     year_stop = args.year_stop
-    
+
     logging.info(f"Данные будут загружаться до {year_stop} года.")
 
     time0 = time()

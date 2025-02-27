@@ -1,21 +1,24 @@
-from bs4 import BeautifulSoup
-import requests
-from .constants import URL_WITH_RESULTS, URL_MAIN
-import re
-from urllib.parse import urljoin
-from time import time
-from .exceptions import YearComplited
-from pathlib import Path
-from http import HTTPStatus
-import pandas as pd
-from datetime import datetime
-from db.models import SpimexTradingResult
-from db.config import SessionLocal
 import logging
-from sqlalchemy.exc import SQLAlchemyError
-from pandas.core.frame import DataFrame
-from .configs import configure_argument_parser, configure_logging
+import re
+from datetime import datetime
+from http import HTTPStatus
+from pathlib import Path
 from queue import Queue
+from time import time
+from urllib.parse import urljoin
+
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from pandas.core.frame import DataFrame
+from sqlalchemy.exc import SQLAlchemyError
+
+from db.config import SessionLocal
+from db.models import SpimexTradingResult
+
+from .configs import configure_argument_parser, configure_logging
+from .constants import URL_MAIN, URL_WITH_RESULTS
+from .exceptions import YearComplited
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -85,17 +88,17 @@ def parse_tags(date: list, links: list, queue: Queue, year_stop: int):
 
 def download_xml(url, queue: Queue) -> str:
     """Скачиваем файлы по url"""
-    download = BASE_DIR / 'download'
+    download = BASE_DIR / "download"
     try:
         download.mkdir(exist_ok=True)
-        name = url.split('/')[-1].split('?')[0]
+        name = url.split("/")[-1].split("?")[0]
         filename = download / name
         url_full = urljoin(URL_MAIN, url)
         try:
             response = requests.get(url_full, timeout=30)
             if response.status_code == HTTPStatus.OK:
                 content = response.content
-                with open(filename, mode='wb') as f:
+                with open(filename, mode="wb") as f:
                     f.write(content)
                 queue.task_done()
                 return str(filename)
@@ -126,16 +129,16 @@ def parse_file(file_path: str):
       file_path - путь к файлу
     """
     try:
-        pattern_date = r'oil_xls_(\d{8})'
+        pattern_date = r"oil_xls_(\d{8})"
         match_date = re.search(pattern_date, file_path)
         if not match_date:
             logging.info(f"Не удалось извлечь дату из имени файла {file_path}")
             return None
         date_doc = match_date.group(1)
-        date = datetime.strptime(date_doc, '%Y%m%d').date()
-        
+        date = datetime.strptime(date_doc, "%Y%m%d").date()
+
         df = pd.read_excel(file_path, header=None)
-        mathed_row = df[df.apply(lambda row: row.astype(str).str.contains('Метрическая тонна').any(), axis=1)].index
+        mathed_row = df[df.apply(lambda row: row.astype(str).str.contains("Метрическая тонна").any(), axis=1)].index
         if mathed_row.empty:
             logging.info(f"Ошибка: 'Метрическая тонна' не найдена в файле {file_path}")
             return None
@@ -143,7 +146,7 @@ def parse_file(file_path: str):
 
         res_df = pd.read_excel(file_path, header=header_row + 2)
         return date, res_df
-    
+
     except Exception as e:
         logging.exception(f"Ошибка при парсинге файлов в {file_path}: {e}", stack_info=True)
 
@@ -157,11 +160,11 @@ def save_in_db(date: datetime.date, res_df: DataFrame, session):
     try:
         for index in range(100000):
             rows = res_df.iloc[index].to_list()
-            if rows[1] in ('Итого:', 'Итого: ', ' Итого:', 'Итого по секции:'):
+            if rows[1] in ("Итого:", "Итого: ", " Итого:", "Итого по секции:"):
                 break
             if pd.isna(rows[4]) or pd.isna(rows[14]) or pd.isna(rows[5]):
                 continue
-            if rows[14] == '-':
+            if rows[14] == "-":
                 continue
             new_oil = SpimexTradingResult(
                 exchange_product_id=str(rows[1]),
@@ -173,7 +176,7 @@ def save_in_db(date: datetime.date, res_df: DataFrame, session):
                 volume=int(rows[4]) if rows[4] != "-" else 0,
                 total=int(rows[5]) if rows[5] != "-" else 0,
                 count=int(rows[14]) if rows[14] != "-" else 0,
-                date=date
+                date=date,
             )
             session.add(new_oil)
         session.commit()
@@ -199,14 +202,14 @@ def main(year_stop):
     for file_path in download_files:
         data = parse_file(file_path)
         data_to_save.append(data)
-                           
+
     for data in data_to_save:
         if data is None:
             continue
-        # Сессия не ассинхронная для postgresql
+        # Cинхронная сессия для postgresql
         with SessionLocal() as session:
             save_in_db(data[0], data[1], session)
-        
+
 
 if __name__ == "__main__":
     configure_logging()
@@ -214,7 +217,7 @@ if __name__ == "__main__":
     arg_parse = configure_argument_parser()
     args = arg_parse.parse_args()
     year_stop = args.year_stop
-    
+
     logging.info(f"Данные будут загружаться до {year_stop} года.")
 
     time0 = time()

@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
 from datetime import date as date_doc
+from datetime import datetime, timezone
+
+from sqlalchemy import Date, DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, DateTime, Date
 
 
 class Base(DeclarativeBase):
@@ -10,7 +11,8 @@ class Base(DeclarativeBase):
 
 class SpimexTradingResult(Base):
     """Класс данных Бюллетени в БД"""
-    __tablename__ = 'spimex_trading_results'
+
+    __tablename__ = "spimex_trading_results"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     exchange_product_id: Mapped[str] = mapped_column(String(255))
@@ -24,4 +26,6 @@ class SpimexTradingResult(Base):
     count: Mapped[int] = mapped_column()
     date: Mapped[date_doc] = mapped_column(Date)
     created_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_on: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc), nullable=True)
+    updated_on: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc), nullable=True
+    )
