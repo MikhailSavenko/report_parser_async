@@ -66,8 +66,7 @@
 1. **Клонируйте репозиторий:**
 
    ```sh
-   git clone <репозиторий>
-   cd <папка с проектом>
+   git clone git@github.com:MikhailSavenko/report_parser_async.git
    ```
 
 2. **Установите зависимости:**
