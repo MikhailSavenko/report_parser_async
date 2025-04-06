@@ -11,3 +11,5 @@ psycopg2-binary==2.9.10
 isort==6.0.1
 black==25.1.0
 flake8==7.1.2
+fastapi==0.115.12
+uvicorn[standard]
