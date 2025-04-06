@@ -3,6 +3,7 @@ from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import date
+from fastapi_cache.decorator import cache
 
 from api.backend.db_depends import get_db
 from db.models import SpimexTradingResult
@@ -11,7 +12,24 @@ from api.schemas import SpimexTradingResultDB
 router = APIRouter(prefix="/results", tags=["results"])
 
 
+@router.get("/dates/{days}", response_model=list[date])
+@cache()
+async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], days: int):
+    """Cписок дат последних торговых дней"""
+    stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
+    
+    dates = await db.scalars(stmp)
+
+    if dates is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="There are no trading dates!"
+        )
+    return dates
+
+
 @router.get("/{start_date}/{end_date}", response_model=list[SpimexTradingResultDB])
+@cache()
 async def get_dynamics(db: Annotated[AsyncSession, Depends(get_db)],
                        start_date: date, 
                        end_date: date,
@@ -44,6 +62,7 @@ async def get_dynamics(db: Annotated[AsyncSession, Depends(get_db)],
 
 
 @router.get("/", response_model=list[SpimexTradingResultDB])
+@cache()
 async def get_trading_results(db: Annotated[AsyncSession, Depends(get_db)], 
                               limit: int = Query(10, ge=0, le=10), 
                               offset: int = Query(0, ge=0),
@@ -74,16 +93,3 @@ async def get_trading_results(db: Annotated[AsyncSession, Depends(get_db)],
 
 
 
-@router.get("/dates/{days}", response_model=list[date])
-async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], days: int):
-    """Cписок дат последних торговых дней"""
-    stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
-    
-    dates = await db.scalars(stmp)
-
-    if dates is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="There are no trading dates!"
-        )
-    return dates
