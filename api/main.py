@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
     redis = aioredis.from_url(os.getenv("REDIS"))
     FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
     yield
+    await FastAPICache.clear()
 
 app = FastAPI(lifespan=lifespan)
 
