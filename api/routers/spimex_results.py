@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import date
 
 from api.backend.db_depends import get_db
 from db.models import SpimexTradingResult
@@ -17,7 +18,7 @@ async def get_trading_results(db: Annotated[AsyncSession, Depends(get_db)],
                               oil_id: Annotated[str | None, Query()] = None,
                               delivery_type_id: Annotated[str | None, Query()] = None,
                               delivery_basis_id: Annotated[str | None, Query()] = None):
-
+    """Cписок торгов"""
     stmp = select(SpimexTradingResult)
 
     if oil_id:
@@ -38,3 +39,12 @@ async def get_trading_results(db: Annotated[AsyncSession, Depends(get_db)],
             detail="There are no trading results!"
         )
     return results.all()
+
+
+
+@router.get("/dates/{days}", response_model=list[date])
+async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], days: int):
+    """Cписок дат последних торговых дней"""
+    stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
+    dates = await db.scalars(stmp)
+    return dates
