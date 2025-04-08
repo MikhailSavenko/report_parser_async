@@ -28,7 +28,6 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     yield
     await FastAPICache.clear()
-    await scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
 

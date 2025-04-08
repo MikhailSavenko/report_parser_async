@@ -8,12 +8,13 @@ from fastapi_cache.decorator import cache
 from api.backend.db_depends import get_db
 from db.models import SpimexTradingResult
 from api.schemas import SpimexTradingResultDB
+from api.utils import request_key_builder
 
 router = APIRouter(prefix="/results", tags=["results"])
 
 
 @router.get("/dates/{days}", response_model=list[date])
-@cache()
+@cache(key_builder=request_key_builder)
 async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], days: int):
     """Cписок дат последних торговых дней"""
     stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
@@ -29,7 +30,7 @@ async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], d
 
 
 @router.get("/{start_date}/{end_date}", response_model=list[SpimexTradingResultDB])
-@cache()
+@cache(key_builder=request_key_builder)
 async def get_dynamics(db: Annotated[AsyncSession, Depends(get_db)],
                        start_date: date, 
                        end_date: date,
@@ -62,7 +63,7 @@ async def get_dynamics(db: Annotated[AsyncSession, Depends(get_db)],
 
 
 @router.get("/", response_model=list[SpimexTradingResultDB])
-@cache()
+@cache(key_builder=request_key_builder)
 async def get_trading_results(db: Annotated[AsyncSession, Depends(get_db)], 
                               limit: int = Query(10, ge=0, le=10), 
                               offset: int = Query(0, ge=0),
