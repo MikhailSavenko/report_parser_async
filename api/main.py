@@ -1,12 +1,12 @@
-from fastapi import FastAPI
+import os
 from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from dotenv import load_dotenv
+from fastapi import FastAPI
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-import os
-from dotenv import load_dotenv
 
 from api.routers import spimex_results
 
@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     yield
     await FastAPICache.clear()
+
 
 app = FastAPI(lifespan=lifespan)
 

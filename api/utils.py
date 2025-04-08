@@ -9,9 +9,4 @@ def request_key_builder(
     *args,
     **kwargs,
 ):
-    return ":".join([
-        namespace,
-        request.method.lower(),
-        request.url.path,
-        repr(sorted(request.query_params.items()))
-    ])
+    return ":".join([namespace, request.method.lower(), request.url.path, repr(sorted(request.query_params.items()))])
