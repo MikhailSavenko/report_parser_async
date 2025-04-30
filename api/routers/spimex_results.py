@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
 from fastapi_cache.decorator import cache
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,8 +31,8 @@ async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], d
 @cache(key_builder=request_key_builder)
 async def get_dynamics(
     db: Annotated[AsyncSession, Depends(get_db)],
-    start_date: date,
-    end_date: date,
+    start_date: date = Path(example="2025-02-26"),
+    end_date: date = Path(example="2025-02-27"),
     limit: int = Query(10, ge=0, le=10),
     offset: int = Query(0, ge=0),
     oil_id: Annotated[str | None, Query()] = None,
