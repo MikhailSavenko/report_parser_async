@@ -17,14 +17,14 @@ async def async_client():
         yield client
 
 
-@pytest.fixture
-async def fastapi_cache_mock(mocker: MockerFixture):
+# @pytest.fixture
+# async def fastapi_cache_mock(mocker: MockerFixture):
     
-    def no_cache(func):
-        return func
+#     def no_cache(func):
+#         return func
     
-    mocker.patch.object(decorator, "cache", no_cache)
-    yield
+#     mocker.patch.object(decorator, "cache", no_cache)
+#     yield
 
 
 @pytest.fixture(scope="session", autouse=True)

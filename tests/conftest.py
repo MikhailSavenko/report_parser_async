@@ -1,10 +1,29 @@
 from db.models import Base
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import pytest
+from sqlalchemy.orm import sessionmaker
+from api.backend.db_depends import get_db
+from api.main import app
+
 
 TEST_BD_URL = "sqlite+aiosqlite:///:memory:"
 
 engine_test = create_async_engine(TEST_BD_URL)
+
+TestingSessionLocal = sessionmaker(
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    bind=engine_test,
+)
+
+
+async def override_get_async_session():
+    async with TestingSessionLocal() as async_session:
+        yield async_session
+
+
+app.dependency_overrides[get_db] = override_get_async_session
 
 
 @pytest.fixture(scope="session", autouse=True)
