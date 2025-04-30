@@ -22,7 +22,7 @@ async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], d
 
     dates = await db.scalars(stmp)
 
-    if dates is None:
+    if not list(dates):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading dates!")
     return dates
 
