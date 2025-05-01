@@ -4,6 +4,7 @@ from api.main import app
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 
 
 from .tests_data import spimex_test_data
@@ -30,9 +31,16 @@ async def initialize_cache():
 
 @pytest.fixture
 async def fill_db_spimex_results(async_session: AsyncSession):
+    """Наполняем базу данными из test_data.py"""
+    await async_session.execute(delete(SpimexTradingResult))
+    await async_session.commit()
+
     for item in spimex_test_data:
         obj = SpimexTradingResult(**item)
         async_session.add(obj)
+
     await async_session.commit()
+    
     yield spimex_test_data
+
 
