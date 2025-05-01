@@ -5,7 +5,7 @@ from fastapi import status
 
 @pytest.mark.anyio
 async def test_404_not_found(async_client):
-    days = 10
+    days = 0
     response = await async_client.get(f"/results/dates/{days}")
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
