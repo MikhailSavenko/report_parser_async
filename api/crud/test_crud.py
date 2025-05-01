@@ -1,5 +1,5 @@
 from base_crud import CRUDBase
 
 
-class TestCrud(CRUDBase):
+class CrudTestHelper(CRUDBase):
     pass

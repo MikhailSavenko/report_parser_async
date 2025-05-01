@@ -21,3 +21,5 @@ async def initialize_cache():
     FastAPICache.init(InMemoryBackend(), prefix="test-cache")
     yield
     await FastAPICache.clear(namespace="test-cache")
+
+
