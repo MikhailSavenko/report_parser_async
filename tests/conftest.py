@@ -1,7 +1,6 @@
 from db.models import Base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 import pytest
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from api.backend.db_depends import get_db
 from api.main import app
@@ -34,3 +33,5 @@ async def setup_db():
     yield
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
