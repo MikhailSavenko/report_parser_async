@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from api.backend.db_depends import get_db
 from api.main import app
 
-
 TEST_BD_URL = "sqlite+aiosqlite:///:memory:"
 
 engine_test = create_async_engine(TEST_BD_URL)
+
 
 TestingSessionLocal = async_sessionmaker(
     class_=AsyncSession,
