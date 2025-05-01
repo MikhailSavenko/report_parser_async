@@ -6,7 +6,7 @@ from fastapi_cache.backends.inmemory import InMemoryBackend
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-from tests_data import spimex_test_data
+from .tests_data import spimex_test_data
 from db.models import SpimexTradingResult
 
 

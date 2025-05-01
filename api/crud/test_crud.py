@@ -1,4 +1,4 @@
-from base_crud import CRUDBase
+from .base_crud import CRUDBase
 from db.models import SpimexTradingResult
 
 
