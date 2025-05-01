@@ -30,3 +30,40 @@ async def test_filter_oil_id(async_client, fill_db_spimex_results):
 
     assert len(response.json()) == 2
 
+
+@pytest.mark.anyio
+async def test_filter_delivery_type_id(async_client, fill_db_spimex_results):
+    start_date = fill_db_spimex_results[0].get("date")
+    end_date = fill_db_spimex_results[-1].get("date")
+    delivery_type_id = fill_db_spimex_results[0].get("delivery_type_id")
+
+    response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_type_id={delivery_type_id}")
+
+    assert len(response.json()) == 1
+
+
+@pytest.mark.anyio
+async def test_filter_delivery_basis_id(async_client, fill_db_spimex_results):
+    start_date = fill_db_spimex_results[0].get("date")
+    end_date = fill_db_spimex_results[-1].get("date")
+    delivery_basis_id = fill_db_spimex_results[0].get("delivery_basis_id")
+
+    response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_basis_id={delivery_basis_id}")
+
+    assert len(response.json()) == 2
+
+
+@pytest.mark.anyio
+async def test_format_response_json(async_client, fill_db_spimex_results):
+    start_date = fill_db_spimex_results[0].get("date")
+    end_date = fill_db_spimex_results[-1].get("date")
+
+    response = await async_client.get(f"/results/{start_date}/{end_date}")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.headers["content-type"] == "application/json"
+
+    data = response.json()
+
+    assert isinstance(data, list)
+    assert isinstance(data[0], dict)
