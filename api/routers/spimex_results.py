@@ -21,7 +21,7 @@ async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], d
     stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
 
     dates = await db.scalars(stmp)
-    list_dates = list(dates)
+    list_dates = dates.all()
     if not list_dates:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading dates!")
     return list_dates
@@ -87,6 +87,7 @@ async def get_trading_results(
     stmp = stmp.limit(limit).offset(offset)
 
     results = await db.scalars(stmp)
-    if results is None:
+    list_results = results.all()
+    if not list_results:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading results!")
-    return results.all()
+    return list_results

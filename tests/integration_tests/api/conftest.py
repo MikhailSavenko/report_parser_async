@@ -32,8 +32,6 @@ async def initialize_cache():
 @pytest.fixture
 async def fill_db_spimex_results(async_session: AsyncSession):
     """Наполняем базу данными из test_data.py"""
-    await async_session.execute(delete(SpimexTradingResult))
-    await async_session.commit()
 
     for item in spimex_test_data:
         obj = SpimexTradingResult(**item)
@@ -42,5 +40,8 @@ async def fill_db_spimex_results(async_session: AsyncSession):
     await async_session.commit()
     
     yield spimex_test_data
+
+    await async_session.execute(delete(SpimexTradingResult))
+    await async_session.commit()
 
 
