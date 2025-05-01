@@ -56,9 +56,10 @@ async def get_dynamics(
     stmp = stmp.limit(limit).offset(offset)
 
     results = await db.scalars(stmp)
-    if results is None:
+    list_result = results.all()
+    if not list_result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading results!")
-    return results.all()
+    return list_result
 
 
 @router.get("/", response_model=list[SpimexTradingResultDB])
