@@ -21,10 +21,10 @@ async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], d
     stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
 
     dates = await db.scalars(stmp)
-
-    if not list(dates):
+    list_dates = list(dates)
+    if not list_dates:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading dates!")
-    return dates
+    return list_dates
 
 
 @router.get("/{start_date}/{end_date}", response_model=list[SpimexTradingResultDB])
