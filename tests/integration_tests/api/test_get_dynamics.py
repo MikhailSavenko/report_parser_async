@@ -54,6 +54,19 @@ async def test_filter_delivery_basis_id(async_client, fill_db_spimex_results):
 
 
 @pytest.mark.anyio
+async def test_filter_all(async_client, fill_db_spimex_results):
+    start_date = fill_db_spimex_results[0].get("date")
+    end_date = fill_db_spimex_results[-1].get("date")
+    delivery_basis_id = fill_db_spimex_results[-1].get("delivery_basis_id")
+    delivery_type_id = fill_db_spimex_results[-1].get("delivery_type_id")
+    oil_id = fill_db_spimex_results[-1].get("oil_id")
+
+    response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_basis_id={delivery_basis_id}&delivery_type_id={delivery_type_id}&oil_id={oil_id}")
+
+    assert len(response.json()) == 1
+
+
+@pytest.mark.anyio
 async def test_format_response_json(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -67,3 +80,20 @@ async def test_format_response_json(async_client, fill_db_spimex_results):
 
     assert isinstance(data, list)
     assert isinstance(data[0], dict)
+
+    expected_keys = set(fill_db_spimex_results[0].keys())
+    assert expected_keys.issubset(data[0])
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("start_date, end_date", [
+    ("22-01-2024", "22-01-2024"),
+    ("2024.01.22", "2024.01.22"),
+    ("aaa", "aaa"),
+    (11111111111, 111111111111)
+
+])
+async def test_not_valid_dates(start_date, end_date, async_client, fill_db_spimex_results):
+    response = await async_client.get(f"/results/{start_date}/{end_date}")
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
