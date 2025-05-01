@@ -38,3 +38,15 @@ async def test_not_valid_day(async_client, fill_db_spimex_results):
     not_valid_days = "not_valid"
     response = await async_client.get(f"/results/dates/{not_valid_days}")
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.anyio
+async def test_last_days_result(async_client, fill_db_spimex_results):
+    """Проверяем возврат именно посленей записи по дате"""
+    days = 1
+    last_date = fill_db_spimex_results[-1].get("date")
+    response = await async_client.get(f"/results/dates/{days}")
+
+    date_str = response.json()[0]
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+    assert date_obj == last_date

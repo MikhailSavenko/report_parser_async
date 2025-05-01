@@ -34,4 +34,5 @@ async def fill_db_spimex_results(async_session: AsyncSession):
         obj = SpimexTradingResult(**item)
         async_session.add(obj)
     await async_session.commit()
+    yield spimex_test_data
 
