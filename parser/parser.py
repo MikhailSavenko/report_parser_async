@@ -41,7 +41,6 @@ def get_urls(url, queue: Queue, year_stop: int):
 
         date = soup.find_all(string=pattern_date)[:10]
         links = soup.find_all("a", href=pattern)
-        print(date)
         try:
             parse_tags(date, links, queue, year_stop)
         except YearComplited:

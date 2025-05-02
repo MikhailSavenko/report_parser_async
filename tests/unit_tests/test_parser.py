@@ -1,6 +1,8 @@
 from parser import parser
 from pytest_mock import MockFixture
 from queue import Queue
+import pytest
+from parser.exceptions import YearComplited
 
 
 def test_main_with_mocks(mocker: MockFixture):
@@ -33,28 +35,11 @@ def test_main_with_mocks(mocker: MockFixture):
     mock_save_in_db.assert_called_once()
 
 
-def test_get_urls(mocker: MockFixture):
+def test_get_urls(mocker: MockFixture, html, html_without_next):
     mock_request_get = mocker.patch("requests.get")
     mock_parse_tags = mocker.patch("parser.parser.parse_tags")
     mock_get_urls = mocker.patch("parser.parser.get_urls", wraps=parser.get_urls)
 
-    html = """
-        <html>
-          <body>
-            <div>Дата: 11.04.2023</div>
-            <a href="/upload/reports/oil_xls/fake.xls">Скачать</a>
-            <li class="bx-pag-next"><a href="/next-page">Далее</a></li>
-          </body>
-        </html>
-    """
-    html_without_next = """
-        <html>
-          <body>
-            <div>Дата: 12.04.2023</div>
-            <a href="/upload/reports/oil_xls/fake2.xls">Скачать</a>
-          </body>
-        </html>
-    """
     mock_request_get.side_effect = [
         mocker.Mock(text=html),
         mocker.Mock(text=html_without_next)
@@ -74,3 +59,28 @@ def test_get_urls(mocker: MockFixture):
  
     assert "/upload/reports/oil_xls/fake.xls" in first_call_args[1][0]["href"]
     assert "/upload/reports/oil_xls/fake2.xls" in second_call_args[1][0]["href"]
+
+
+def test_parse_tags(mocker: MockFixture, create_tags_dates_links):
+    queue = Queue()
+    assert queue.empty() == True, "Очередь не пуская до вызова!"
+    
+    dates, links = create_tags_dates_links
+
+    parser.parse_tags(dates[:2], links[:2], queue, 2024)
+    
+    assert not queue.empty(), "Очередь пустая после обработки данных. Должно быть два!"
+    assert queue.qsize() == 2
+    assert queue.queue[0] == links[0].get("href")
+    assert queue.queue[1] == links[1].get("href")
+
+
+def test_parse_tags_year_complited(mocker: MockFixture, create_tags_dates_links):
+    """Тест остановки парсинга тегов по году и поднятия YearComplited"""
+    queue = Queue()
+    assert queue.empty() == True, "Очередь не пуская до вызова!"
+    
+    dates, links = create_tags_dates_links
+
+    with pytest.raises(YearComplited):
+        parser.parse_tags(dates, links, queue, 2024)
