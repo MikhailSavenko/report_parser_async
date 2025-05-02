@@ -1,5 +1,6 @@
 from parser import parser
 from pytest_mock import MockFixture
+from queue import Queue
 
 
 def test_main_with_mocks(mocker: MockFixture):
@@ -30,4 +31,23 @@ def test_main_with_mocks(mocker: MockFixture):
     mock_download_xml.assert_called_once_with("http://example.com/fake.xml", mocker.ANY)
     mock_parse_file.assert_called_once_with(dummy_file_path)
     mock_save_in_db.assert_called_once()
-    
+
+
+def test_get_urls(mocker: MockFixture):
+    mock_request_get = mocker.patch("requests.get")
+    mock_parse_tags = mocker.patch("parser.parser.parse_tags")
+
+    html = """
+        <html>
+          <body>
+            <div>Дата: 11.04.2023</div>
+            <a href="/upload/reports/oil_xls/fake.xls">Скачать</a>
+          </body>
+        </html>
+    """
+    mock_request_get.return_value.text = html
+    # Вызов
+    queue = Queue()
+    parser.get_urls("http://example.com/fake", queue, 2023)
+
+    mock_parse_tags.assert_called_once()
