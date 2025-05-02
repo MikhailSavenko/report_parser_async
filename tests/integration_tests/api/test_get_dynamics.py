@@ -27,8 +27,11 @@ async def test_filter_oil_id(async_client, fill_db_spimex_results):
     oil_id = fill_db_spimex_results[0].get("oil_id")
 
     response = await async_client.get(f"/results/{start_date}/{end_date}?oil_id={oil_id}")
+    data = response.json()
+    assert len(data) == 2
+    assert data[0].get("oil_id") == oil_id
+    assert data[1].get("oil_id") == oil_id
 
-    assert len(response.json()) == 2
 
 
 @pytest.mark.anyio
@@ -38,8 +41,9 @@ async def test_filter_delivery_type_id(async_client, fill_db_spimex_results):
     delivery_type_id = fill_db_spimex_results[0].get("delivery_type_id")
 
     response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_type_id={delivery_type_id}")
-
-    assert len(response.json()) == 1
+    data = response.json()
+    assert len(data) == 1
+    assert data[0].get("delivery_type_id") == delivery_type_id
 
 
 @pytest.mark.anyio
@@ -49,8 +53,10 @@ async def test_filter_delivery_basis_id(async_client, fill_db_spimex_results):
     delivery_basis_id = fill_db_spimex_results[0].get("delivery_basis_id")
 
     response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_basis_id={delivery_basis_id}")
-
-    assert len(response.json()) == 2
+    data = response.json()
+    assert len(data) == 2
+    assert data[0].get("delivery_basis_id") == delivery_basis_id
+    assert data[1].get("delivery_basis_id") == delivery_basis_id
 
 
 @pytest.mark.anyio
@@ -62,8 +68,11 @@ async def test_filter_all(async_client, fill_db_spimex_results):
     oil_id = fill_db_spimex_results[-1].get("oil_id")
 
     response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_basis_id={delivery_basis_id}&delivery_type_id={delivery_type_id}&oil_id={oil_id}")
-
-    assert len(response.json()) == 1
+    data = response.json()
+    assert len(data) == 1
+    assert data[0].get("delivery_type_id") == delivery_type_id
+    assert data[0].get("delivery_basis_id") == delivery_basis_id
+    assert data[0].get("oil_id") == oil_id
 
 
 @pytest.mark.anyio
