@@ -36,18 +36,41 @@ def test_main_with_mocks(mocker: MockFixture):
 def test_get_urls(mocker: MockFixture):
     mock_request_get = mocker.patch("requests.get")
     mock_parse_tags = mocker.patch("parser.parser.parse_tags")
+    mock_get_urls = mocker.patch("parser.parser.get_urls", wraps=parser.get_urls)
 
     html = """
         <html>
           <body>
             <div>Дата: 11.04.2023</div>
             <a href="/upload/reports/oil_xls/fake.xls">Скачать</a>
+            <li class="bx-pag-next"><a href="/next-page">Далее</a></li>
           </body>
         </html>
     """
-    mock_request_get.return_value.text = html
-    # Вызов
+    html_without_next = """
+        <html>
+          <body>
+            <div>Дата: 12.04.2023</div>
+            <a href="/upload/reports/oil_xls/fake2.xls">Скачать</a>
+          </body>
+        </html>
+    """
+    mock_request_get.side_effect = [
+        mocker.Mock(text=html),
+        mocker.Mock(text=html_without_next)
+    ]
+    # Вызов тестируемого метода
     queue = Queue()
     parser.get_urls("http://example.com/fake", queue, 2023)
 
-    mock_parse_tags.assert_called_once()
+    assert mock_parse_tags.call_count == 2, "Не был вызван parse_tags"
+    assert mock_get_urls.call_count == 2, "Не был вызван get_urls"
+
+    first_call_args = mock_parse_tags.call_args_list[0][0]
+    second_call_args = mock_parse_tags.call_args_list[1][0]
+
+    assert "11.04.2023" in first_call_args[0][0]
+    assert "12.04.2023" in second_call_args[0][0]
+ 
+    assert "/upload/reports/oil_xls/fake.xls" in first_call_args[1][0]["href"]
+    assert "/upload/reports/oil_xls/fake2.xls" in second_call_args[1][0]["href"]
