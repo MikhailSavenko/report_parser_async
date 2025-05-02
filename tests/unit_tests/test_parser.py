@@ -3,6 +3,8 @@ from pytest_mock import MockFixture
 from queue import Queue
 import pytest
 from parser.exceptions import YearComplited
+from http import HTTPStatus
+from pathlib import Path
 
 
 def test_main_with_mocks(mocker: MockFixture):
@@ -78,9 +80,45 @@ def test_parse_tags(mocker: MockFixture, create_tags_dates_links):
 def test_parse_tags_year_complited(mocker: MockFixture, create_tags_dates_links):
     """Тест остановки парсинга тегов по году и поднятия YearComplited"""
     queue = Queue()
-    assert queue.empty() == True, "Очередь не пуская до вызова!"
+    assert queue.empty() is True, "Очередь не пуская до вызова!"
     
     dates, links = create_tags_dates_links
 
     with pytest.raises(YearComplited):
         parser.parse_tags(dates, links, queue, 2024)
+
+
+def test_download_xml(mocker: MockFixture):
+    try:
+        dummy_url = "/upload/reports/oil_xls/fake.xls"
+
+        queue = Queue()
+        queue.put(dummy_url)
+
+        dummy_content = b"Test Content" 
+
+        mock_response = mocker.Mock()
+        mock_response.status_code = HTTPStatus.OK
+        mock_response.content = dummy_content
+
+        mock_request_get = mocker.patch("requests.get")
+        mock_request_get.return_value = mock_response
+
+        url = queue.get()
+        file_path = parser.download_xml(url, queue)
+
+        assert file_path is not None, "Путь к файлу некорретен"
+        assert file_path.endswith("fake.xls"), "Ожидается иное имя файла"
+
+        full_path = Path(file_path)
+
+        assert full_path.exists(), "Файла нет в downloads!"
+        assert full_path.read_bytes() == dummy_content, "Неверный контент в файле!"
+
+        assert queue.empty(), "Очередь не пуста"
+    finally:
+        if full_path.exists():
+            full_path.unlink()
+
+
+
