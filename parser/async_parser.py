@@ -214,7 +214,7 @@ async def main(year_stop):
     async with aiohttp.ClientSession() as session_aiohttp:
 
         await get_urls(URL_WITH_RESULTS, session_aiohttp, queue, year_stop)
-
+        print("Посел вызова get_urls")
         tasks = []
         for _ in range(queue.qsize()):
             url = await queue.get()

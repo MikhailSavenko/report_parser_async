@@ -1,5 +1,4 @@
 from httpx import ASGITransport, AsyncClient
-import pytest
 from api.main import app
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
