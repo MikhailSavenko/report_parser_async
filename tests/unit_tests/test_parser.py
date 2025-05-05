@@ -9,6 +9,9 @@ from datetime import date
 import pandas
 
 
+from db.models import SpimexTradingResult
+
+
 def test_main_with_mocks(mocker: MockFixture):
     """Тест main в parser"""
     # Моки
@@ -143,4 +146,32 @@ def test_parse_file(mocker: MockFixture):
     assert df_result == "RESULT_DF"
     assert mock_real_excel.call_count == 2
     mock_real_excel.assert_called_with(dump_file, header=2+0)
+
+
+def test_save_in_db_valid_rows(mocker: MockFixture):
+    import datetime
+    date = datetime.date(2024, 1, 1)
+    data = [
+        ["", "1234A56", "Product A", "Basis A", 100, 200, "", "", "", "", "", "", "", "", 3],
+        ["", "Итого:", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+    ]
+
+    df = pandas.DataFrame(data)
+
+    mock_session = mocker.MagicMock()
+
+    parser.save_in_db(date, df, mock_session)
+
+    assert mock_session.add.call_count == 1, "Не был вызван метод add сессии!"
+    
+    added_obj = mock_session.add.call_args[0][0]
+    assert isinstance(added_obj, SpimexTradingResult), "Объект создан не той модели!"
+    assert added_obj.volume == 100
+    assert added_obj.total == 200
+    assert added_obj.count == 3
+    assert added_obj.date == date
+
+    mock_session.commit.assert_called_once(), "Коммит не был вызван!"
+
+
 
