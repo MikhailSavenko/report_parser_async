@@ -1,11 +1,12 @@
 from pathlib import Path
 import pytest
+from db.models import SpimexTradingResult
 from parser import async_parser
 from pytest_mock import MockFixture
 import asyncio
 from parser.exceptions import YearComplited
 from http import HTTPStatus
-
+import pandas
 
 @pytest.mark.asyncio
 async def test_main(mocker: MockFixture):
@@ -164,3 +165,30 @@ async def test_a_save_data_to_db(mocker: MockFixture):
     await async_parser.save_data_to_db(dummy_data)
     
     assert mock_save_in_db.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_a_save_in_db_valid_rows(mocker: MockFixture):
+    import datetime
+    date = datetime.date(2024, 1, 1)
+    data = [
+        ["", "1234A56", "Product A", "Basis A", 100, 200, "", "", "", "", "", "", "", "", 3],
+        ["", "Итого:", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+    ]
+
+    df = pandas.DataFrame(data)
+
+    mock_session = mocker.MagicMock()
+
+    await async_parser.save_in_db(date, df, mock_session)
+
+    assert mock_session.add.call_count == 1, "Неверное количество вызовов метода add у session!"
+    
+    added_obj = mock_session.add.call_args[0][0]
+    assert isinstance(added_obj, SpimexTradingResult), "Объект создан не той модели!"
+    assert added_obj.volume == 100
+    assert added_obj.total == 200
+    assert added_obj.count == 3
+    assert added_obj.date == date
+
+    mock_session.commit.assert_called_once(), "Коммит не был вызван!"
