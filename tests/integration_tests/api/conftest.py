@@ -5,31 +5,26 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete
-
+import pytest_asyncio
 
 from .tests_data import spimex_test_data
 from db.models import SpimexTradingResult
 
 
-@pytest.fixture(scope="session")
-def anyio_backend():
-    return "asyncio"
-
-
-@pytest.fixture
+@pytest_asyncio.fixture
 async def async_client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(scope="session", autouse=True)
 async def initialize_cache():
     FastAPICache.init(InMemoryBackend(), prefix="test-cache")
     yield
     await FastAPICache.clear(namespace="test-cache")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def fill_db_spimex_results(async_session: AsyncSession):
     """Наполняем базу данными из test_data.py"""
 

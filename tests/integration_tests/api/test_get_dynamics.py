@@ -1,7 +1,7 @@
 import pytest
 from fastapi import status
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_404_not_found(async_client):
     start_date = "2020-10-10"
     end_date = "2020-10-10"
@@ -10,7 +10,7 @@ async def test_404_not_found(async_client):
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_200_ok(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -20,7 +20,7 @@ async def test_200_ok(async_client, fill_db_spimex_results):
     assert response.status_code == status.HTTP_200_OK
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_filter_oil_id(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -34,7 +34,7 @@ async def test_filter_oil_id(async_client, fill_db_spimex_results):
 
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_filter_delivery_type_id(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -46,7 +46,7 @@ async def test_filter_delivery_type_id(async_client, fill_db_spimex_results):
     assert data[0].get("delivery_type_id") == delivery_type_id
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_filter_delivery_basis_id(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -59,7 +59,7 @@ async def test_filter_delivery_basis_id(async_client, fill_db_spimex_results):
     assert data[1].get("delivery_basis_id") == delivery_basis_id
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_filter_all(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -75,7 +75,7 @@ async def test_filter_all(async_client, fill_db_spimex_results):
     assert data[0].get("oil_id") == oil_id
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 async def test_format_response_json(async_client, fill_db_spimex_results):
     start_date = fill_db_spimex_results[0].get("date")
     end_date = fill_db_spimex_results[-1].get("date")
@@ -94,7 +94,7 @@ async def test_format_response_json(async_client, fill_db_spimex_results):
     assert expected_keys.issubset(data[0])
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 @pytest.mark.parametrize("start_date, end_date", [
     ("22-01-2024", "22-01-2024"),
     ("2024.01.22", "2024.01.22"),
