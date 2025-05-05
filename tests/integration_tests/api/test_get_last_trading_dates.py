@@ -1,5 +1,6 @@
-import pytest
 from datetime import date, datetime
+
+import pytest
 from fastapi import status
 
 

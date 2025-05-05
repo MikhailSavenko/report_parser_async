@@ -1,12 +1,15 @@
-from pathlib import Path
-import pytest
-from db.models import SpimexTradingResult
-from parser import async_parser
-from pytest_mock import MockFixture
 import asyncio
-from parser.exceptions import YearComplited
 from http import HTTPStatus
+from parser import async_parser
+from parser.exceptions import YearComplited
+from pathlib import Path
+
 import pandas
+import pytest
+from pytest_mock import MockFixture
+
+from db.models import SpimexTradingResult
+
 
 @pytest.mark.asyncio
 async def test_main(mocker: MockFixture):
@@ -18,21 +21,18 @@ async def test_main(mocker: MockFixture):
         queue.task_done()
         return f"file_{url.split('_')[1]}"
 
-    mocker.patch("parser.async_parser.get_urls", 
-                 new_callable=mocker.AsyncMock, 
-                 side_effect=get_fake_urls)
-    
-    mocker.patch("parser.async_parser.download_xml", 
-                 new_callable=mocker.AsyncMock, 
-                 side_effect=download_xml_task_down_and_file)
-    
-    mock_cover_over_parse_file = mocker.patch("parser.async_parser.cover_over_parse_file",
-                                              new_callable=mocker.AsyncMock,
-                                              return_value="data_processed")
-    mock_save_data_to_db = mocker.patch("parser.async_parser.save_data_to_db",
-                                        new_callable=mocker.AsyncMock)
+    mocker.patch("parser.async_parser.get_urls", new_callable=mocker.AsyncMock, side_effect=get_fake_urls)
+
+    mocker.patch(
+        "parser.async_parser.download_xml", new_callable=mocker.AsyncMock, side_effect=download_xml_task_down_and_file
+    )
+
+    mock_cover_over_parse_file = mocker.patch(
+        "parser.async_parser.cover_over_parse_file", new_callable=mocker.AsyncMock, return_value="data_processed"
+    )
+    mock_save_data_to_db = mocker.patch("parser.async_parser.save_data_to_db", new_callable=mocker.AsyncMock)
     await async_parser.main(2023)
- 
+
     assert mock_cover_over_parse_file.call_count == 3, "Неверное число вызовов метода cover_over_parse_file"
     assert mock_save_data_to_db.call_count == 3, "Неверное число вызовов метода save_data_to_db"
 
@@ -49,8 +49,7 @@ async def test_get_urls(mocker: MockFixture, a_html, a_html_without_next):
     mock_session = mocker.AsyncMock()
     mock_session.get.side_effect = [res1, res2]
 
-    mock_parse_tags = mocker.patch("parser.async_parser.parse_tags",
-                                   new_callable=mocker.AsyncMock)
+    mock_parse_tags = mocker.patch("parser.async_parser.parse_tags", new_callable=mocker.AsyncMock)
     mock_get_urls = mocker.patch("parser.async_parser.get_urls", wraps=async_parser.get_urls)
     queue = asyncio.Queue()
 
@@ -67,7 +66,7 @@ async def test_get_urls(mocker: MockFixture, a_html, a_html_without_next):
 
     assert "/upload/reports/oil_xls/fake.xls" in first_call_args[1][0]["href"]
     assert "/upload/reports/oil_xls/fake2.xls" in second_call_args[1][0]["href"]
-    
+
 
 @pytest.mark.asyncio
 async def test_parse_tags(a_create_tags_dates_links):
@@ -90,7 +89,7 @@ async def test_parse_tags_year_complited(mocker: MockFixture, a_create_tags_date
     """Тест остановки парсинга тегов по году и поднятия YearComplited"""
     queue = asyncio.Queue()
     assert queue.empty() is True, "Очередь не пуская до вызова!"
-    
+
     dates, links = a_create_tags_dates_links
 
     with pytest.raises(YearComplited):
@@ -138,7 +137,7 @@ async def test_a_download_xml(mocker: MockFixture):
 async def test_a_cover_over_parse_file(mocker: MockFixture):
     mock_loop = mocker.AsyncMock()
     mocker.patch("parser.async_parser.asyncio.get_running_loop", return_value=mock_loop)
-    
+
     mock_parse_file = mocker.MagicMock(return_value=("date", "res_df"))
     mocker.patch("parser.async_parser.parse_file", mock_parse_file)
 
@@ -151,7 +150,9 @@ async def test_a_cover_over_parse_file(mocker: MockFixture):
 
     result = await async_parser.cover_over_parse_file(test_file_path)
 
-    mock_loop.run_in_executor.assert_called_once_with(None, async_parser.parse_file, test_file_path), "run_in_executor не вызывается!"
+    mock_loop.run_in_executor.assert_called_once_with(
+        None, async_parser.parse_file, test_file_path
+    ), "run_in_executor не вызывается!"
     mock_parse_file.assert_called_with(test_file_path), "parse_file не вызывается!"
 
     assert result == mock_parse_file.return_value, "Были возвращены неверные данные"
@@ -161,19 +162,20 @@ async def test_a_cover_over_parse_file(mocker: MockFixture):
 async def test_a_save_data_to_db(mocker: MockFixture):
     mock_save_in_db = mocker.patch("parser.async_parser.save_in_db", new_callable=mocker.AsyncMock)
     dummy_data = ("date", "res_df")
-    
+
     await async_parser.save_data_to_db(dummy_data)
-    
+
     assert mock_save_in_db.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_a_save_in_db_valid_rows(mocker: MockFixture):
     import datetime
+
     date = datetime.date(2024, 1, 1)
     data = [
         ["", "1234A56", "Product A", "Basis A", 100, 200, "", "", "", "", "", "", "", "", 3],
-        ["", "Итого:", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+        ["", "Итого:", "", "", "", "", "", "", "", "", "", "", "", "", ""],
     ]
 
     df = pandas.DataFrame(data)
@@ -183,7 +185,7 @@ async def test_a_save_in_db_valid_rows(mocker: MockFixture):
     await async_parser.save_in_db(date, df, mock_session)
 
     assert mock_session.add.call_count == 1, "Неверное количество вызовов метода add у session!"
-    
+
     added_obj = mock_session.add.call_args[0][0]
     assert isinstance(added_obj, SpimexTradingResult), "Объект создан не той модели!"
     assert added_obj.volume == 100

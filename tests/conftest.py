@@ -1,10 +1,9 @@
-from db.models import Base
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.ext.asyncio import async_sessionmaker
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from api.backend.db_depends import get_db
 from api.main import app
-import pytest_asyncio
-
+from db.models import Base
 
 TEST_BD_URL = "sqlite+aiosqlite:///:memory:"
 

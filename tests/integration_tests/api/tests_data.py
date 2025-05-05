@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import date, datetime
 
 spimex_test_data = [
     {
@@ -13,7 +13,7 @@ spimex_test_data = [
         "count": 5,
         "date": date(2024, 5, 20),
         "created_on": datetime(2024, 5, 21, 10, 0, 0),
-        "updated_on": None
+        "updated_on": None,
     },
     {
         "exchange_product_id": "EX124",
@@ -27,7 +27,7 @@ spimex_test_data = [
         "count": 10,
         "date": date(2024, 5, 21),
         "created_on": datetime(2024, 5, 22, 11, 30, 0),
-        "updated_on": None
+        "updated_on": None,
     },
     {
         "exchange_product_id": "EX125",
@@ -41,6 +41,6 @@ spimex_test_data = [
         "count": 3,
         "date": date(2024, 5, 22),
         "created_on": datetime(2024, 5, 23, 9, 0, 0),
-        "updated_on": None
-    }
+        "updated_on": None,
+    },
 ]

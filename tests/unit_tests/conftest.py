@@ -1,7 +1,9 @@
-import pytest
-from bs4 import BeautifulSoup
 import re
+
+import pytest
 import pytest_asyncio
+from bs4 import BeautifulSoup
+
 
 @pytest_asyncio.fixture
 async def a_html():
@@ -68,6 +70,7 @@ def html_page():
         </html>
     """
 
+
 @pytest_asyncio.fixture
 def a_html_page():
     return """
@@ -87,7 +90,7 @@ def a_html_page():
 @pytest.fixture
 def create_tags_dates_links(html_page):
     """Даты и ссылки для parse_tags"""
-    soup = BeautifulSoup(html_page, "lxml")                                                                                                                                                                               
+    soup = BeautifulSoup(html_page, "lxml")
     pattern_date = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
 
     dates = [date.text.strip() for date in soup.find_all(string=pattern_date)]
@@ -97,11 +100,10 @@ def create_tags_dates_links(html_page):
     yield dates, links
 
 
-
 @pytest_asyncio.fixture
 def a_create_tags_dates_links(a_html_page):
     """Даты и ссылки для parse_tags"""
-    soup = BeautifulSoup(a_html_page, "lxml")                                                                                                                                                                               
+    soup = BeautifulSoup(a_html_page, "lxml")
     pattern_date = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
 
     dates = [date.text.strip() for date in soup.find_all(string=pattern_date)]

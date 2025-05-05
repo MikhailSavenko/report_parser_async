@@ -8,7 +8,6 @@ async def test_404_not_found(async_client):
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-
 @pytest.mark.asyncio
 async def test_200_ok(async_client, fill_db_spimex_results):
     response = await async_client.get("/results/")
@@ -41,6 +40,7 @@ async def test_filter_oil_id(async_client, fill_db_spimex_results):
     assert data[0].get("oil_id") == oil_id
     assert data[1].get("oil_id") == oil_id
 
+
 @pytest.mark.asyncio
 async def test_filter_delivery_type_id(async_client, fill_db_spimex_results):
     delivery_type_id = fill_db_spimex_results[0].get("delivery_type_id")
@@ -70,7 +70,9 @@ async def test_filter_all(async_client, fill_db_spimex_results):
     delivery_type_id = fill_db_spimex_results[-1].get("delivery_type_id")
     oil_id = fill_db_spimex_results[-1].get("oil_id")
 
-    response = await async_client.get(f"/results/?delivery_basis_id={delivery_basis_id}&delivery_type_id={delivery_type_id}&oil_id={oil_id}")
+    response = await async_client.get(
+        f"/results/?delivery_basis_id={delivery_basis_id}&delivery_type_id={delivery_type_id}&oil_id={oil_id}"
+    )
 
     data = response.json()
     assert len(data) == 1

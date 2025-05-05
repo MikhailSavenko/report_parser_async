@@ -1,13 +1,14 @@
-from httpx import ASGITransport, AsyncClient
-from api.main import app
+import pytest_asyncio
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
-import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.main import app
+from db.models import SpimexTradingResult
 
 from .tests_data import spimex_test_data
-from db.models import SpimexTradingResult
 
 
 @pytest_asyncio.fixture
@@ -32,10 +33,8 @@ async def fill_db_spimex_results(async_session: AsyncSession):
         async_session.add(obj)
 
     await async_session.commit()
-    
+
     yield spimex_test_data
 
     await async_session.execute(delete(SpimexTradingResult))
     await async_session.commit()
-
-

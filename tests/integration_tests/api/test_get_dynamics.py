@@ -1,6 +1,7 @@
 import pytest
 from fastapi import status
 
+
 @pytest.mark.asyncio
 async def test_404_not_found(async_client):
     start_date = "2020-10-10"
@@ -31,7 +32,6 @@ async def test_filter_oil_id(async_client, fill_db_spimex_results):
     assert len(data) == 2
     assert data[0].get("oil_id") == oil_id
     assert data[1].get("oil_id") == oil_id
-
 
 
 @pytest.mark.asyncio
@@ -67,7 +67,9 @@ async def test_filter_all(async_client, fill_db_spimex_results):
     delivery_type_id = fill_db_spimex_results[-1].get("delivery_type_id")
     oil_id = fill_db_spimex_results[-1].get("oil_id")
 
-    response = await async_client.get(f"/results/{start_date}/{end_date}?delivery_basis_id={delivery_basis_id}&delivery_type_id={delivery_type_id}&oil_id={oil_id}")
+    response = await async_client.get(
+        f"/results/{start_date}/{end_date}?delivery_basis_id={delivery_basis_id}&delivery_type_id={delivery_type_id}&oil_id={oil_id}"
+    )
     data = response.json()
     assert len(data) == 1
     assert data[0].get("delivery_type_id") == delivery_type_id
@@ -95,13 +97,10 @@ async def test_format_response_json(async_client, fill_db_spimex_results):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("start_date, end_date", [
-    ("22-01-2024", "22-01-2024"),
-    ("2024.01.22", "2024.01.22"),
-    ("aaa", "aaa"),
-    (11111111111, 111111111111)
-
-])
+@pytest.mark.parametrize(
+    "start_date, end_date",
+    [("22-01-2024", "22-01-2024"), ("2024.01.22", "2024.01.22"), ("aaa", "aaa"), (11111111111, 111111111111)],
+)
 async def test_not_valid_dates(start_date, end_date, async_client, fill_db_spimex_results):
     response = await async_client.get(f"/results/{start_date}/{end_date}")
 
