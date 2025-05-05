@@ -6,6 +6,7 @@ import asyncio
 from parser.exceptions import YearComplited
 from http import HTTPStatus
 
+
 @pytest.mark.asyncio
 async def test_main(mocker: MockFixture):
     async def get_fake_urls(url, session, queue, year):
@@ -31,8 +32,8 @@ async def test_main(mocker: MockFixture):
                                         new_callable=mocker.AsyncMock)
     await async_parser.main(2023)
  
-    assert mock_cover_over_parse_file.call_count == 3
-    assert mock_save_data_to_db.call_count == 3
+    assert mock_cover_over_parse_file.call_count == 3, "Неверное число вызовов метода cover_over_parse_file"
+    assert mock_save_data_to_db.call_count == 3, "Неверное число вызовов метода save_data_to_db"
 
 
 @pytest.mark.asyncio
@@ -121,7 +122,7 @@ async def test_a_download_xml(mocker: MockFixture):
         url = await queue.get()
         file_path = await async_parser.download_xml(url, mock_aiohttp, queue)
 
-        assert queue.empty()
+        assert queue.empty(), "Очередь не пустая"
 
         full_path = Path(file_path)
 
@@ -130,3 +131,26 @@ async def test_a_download_xml(mocker: MockFixture):
     finally:
         if full_path.exists():
             full_path.unlink()
+
+
+@pytest.mark.asyncio
+async def test_a_cover_over_parse_file(mocker: MockFixture):
+    mock_loop = mocker.AsyncMock()
+    mocker.patch("parser.async_parser.asyncio.get_running_loop", return_value=mock_loop)
+    
+    mock_parse_file = mocker.MagicMock(return_value=("date", "res_df"))
+    mocker.patch("parser.async_parser.parse_file", mock_parse_file)
+
+    async def fake_run_in_executor(executor, func, *args):
+        return func(*args)  # Вызываем замокированную функцию
+
+    mock_loop.run_in_executor.side_effect = fake_run_in_executor
+
+    test_file_path = "test/path/to/file.txt"
+
+    result = await async_parser.cover_over_parse_file(test_file_path)
+
+    mock_loop.run_in_executor.assert_called_once_with(None, async_parser.parse_file, test_file_path), "run_in_executor не вызывается!"
+    mock_parse_file.assert_called_with(test_file_path), "parse_file не вызывается!"
+
+    assert result == mock_parse_file.return_value, "Были возвращены неверные данные"
