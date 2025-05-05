@@ -39,7 +39,7 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
 
         pattern = re.compile(r"/upload/reports/oil_xls/.*\.xls")
         pattern_date = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
-
+        print("Тут")
         date = soup.find_all(string=pattern_date)[:10]
         links = soup.find_all("a", href=pattern)
 

@@ -1,6 +1,32 @@
 import pytest
 from bs4 import BeautifulSoup
 import re
+import pytest_asyncio
+
+@pytest_asyncio.fixture
+async def a_html():
+    return """
+        <html>
+          <body>
+            <div>Дата: 11.04.2023</div>
+            <a href="/upload/reports/oil_xls/fake.xls">Скачать</a>
+            <li class="bx-pag-next"><a href="/next-page">Далее</a></li>
+          </body>
+        </html>
+    """
+
+
+@pytest_asyncio.fixture
+async def a_html_without_next():
+    return """
+        <html>
+          <body>
+            <div>Дата: 12.04.2023</div>
+            <a href="/upload/reports/oil_xls/fake2.xls">Скачать</a>
+          </body>
+        </html>
+    """
+
 
 @pytest.fixture
 def html():

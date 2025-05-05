@@ -2,6 +2,7 @@ import pytest
 from datetime import date, datetime
 from fastapi import status
 
+
 @pytest.mark.asyncio
 async def test_404_not_found(async_client):
     days = 0
