@@ -2,7 +2,6 @@ import pytest
 from bs4 import BeautifulSoup
 import re
 
-
 @pytest.fixture
 def html():
     return """
@@ -56,5 +55,3 @@ def create_tags_dates_links(html_page):
 
     yield dates, links
 
-
-    

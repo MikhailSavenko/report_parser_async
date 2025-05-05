@@ -5,6 +5,8 @@ import pytest
 from parser.exceptions import YearComplited
 from http import HTTPStatus
 from pathlib import Path
+from datetime import date
+import pandas
 
 
 def test_main_with_mocks(mocker: MockFixture):
@@ -121,4 +123,24 @@ def test_download_xml(mocker: MockFixture):
             full_path.unlink()
 
 
+def test_parse_file(mocker: MockFixture):
+    dump_file = "oil_xls_20240110162000.xls"
+
+    df_mock = pandas.DataFrame([
+        ["что-то", "Метрическая тонна", "еще"], 
+        ["ряд", "какой-то", "нужный"]
+    ])
+
+    mock_real_excel = mocker.patch("parser.parser.pd.read_excel")
+    
+    mock_real_excel.side_effect = [df_mock, "RESULT_DF"]
+
+    result = parser.parse_file(dump_file)
+    assert result is not None, "Функция должна вернуть кортеж"
+    date_result, df_result = result
+    
+    assert date_result == date(2024, 1, 10)
+    assert df_result == "RESULT_DF"
+    assert mock_real_excel.call_count == 2
+    mock_real_excel.assert_called_with(dump_file, header=2+0)
 
