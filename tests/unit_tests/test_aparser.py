@@ -154,3 +154,13 @@ async def test_a_cover_over_parse_file(mocker: MockFixture):
     mock_parse_file.assert_called_with(test_file_path), "parse_file не вызывается!"
 
     assert result == mock_parse_file.return_value, "Были возвращены неверные данные"
+
+
+@pytest.mark.asyncio
+async def test_a_save_data_to_db(mocker: MockFixture):
+    mock_save_in_db = mocker.patch("parser.async_parser.save_in_db", new_callable=mocker.AsyncMock)
+    dummy_data = ("date", "res_df")
+    
+    await async_parser.save_data_to_db(dummy_data)
+    
+    assert mock_save_in_db.call_count == 1
