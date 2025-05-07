@@ -39,7 +39,7 @@ async def get_urls(url, session_aiohttp: aiohttp.ClientSession, queue: asyncio.Q
 
         pattern = re.compile(r"/upload/reports/oil_xls/.*\.xls")
         pattern_date = re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b")
-
+        print("Тут")
         date = soup.find_all(string=pattern_date)[:10]
         links = soup.find_all("a", href=pattern)
 
@@ -80,6 +80,7 @@ async def parse_tags(date: list, links: list, queue: asyncio.Queue, year_stop: i
     """
     try:
         for idx, link in enumerate(links):
+            print(int(date[idx][6:]))
             if int(date[idx][6:]) == year_stop:
                 raise YearComplited
             await queue.put(link.get("href"))
@@ -100,9 +101,13 @@ async def download_xml(url, session_aiohttp: aiohttp.ClientSession, queue: async
         filename = download / name
         url_full = urljoin(URL_MAIN, url)
         try:
+            print("HELLOOOOOOOO")
             async with session_aiohttp.get(url_full) as response:
+                print(f"response .............. {response}")
                 if response.status == HTTPStatus.OK:
+                    print(f"response.status {response.status}")
                     content = await response.read()
+                    print(f"content {content}")
                     with open(filename, mode="wb") as f:
                         f.write(content)
                     queue.task_done()
@@ -214,7 +219,7 @@ async def main(year_stop):
     async with aiohttp.ClientSession() as session_aiohttp:
 
         await get_urls(URL_WITH_RESULTS, session_aiohttp, queue, year_stop)
-
+        print("Посел вызова get_urls")
         tasks = []
         for _ in range(queue.qsize()):
             url = await queue.get()

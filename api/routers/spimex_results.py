@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from fastapi_cache.decorator import cache
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,10 +21,10 @@ async def get_last_trading_dates(db: Annotated[AsyncSession, Depends(get_db)], d
     stmp = select(SpimexTradingResult.date).distinct().order_by(SpimexTradingResult.date.desc()).limit(days)
 
     dates = await db.scalars(stmp)
-
-    if dates is None:
+    list_dates = dates.all()
+    if not list_dates:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading dates!")
-    return dates
+    return list_dates
 
 
 @router.get("/{start_date}/{end_date}", response_model=list[SpimexTradingResultDB])
@@ -56,9 +56,10 @@ async def get_dynamics(
     stmp = stmp.limit(limit).offset(offset)
 
     results = await db.scalars(stmp)
-    if results is None:
+    list_result = results.all()
+    if not list_result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading results!")
-    return results.all()
+    return list_result
 
 
 @router.get("/", response_model=list[SpimexTradingResultDB])
@@ -86,6 +87,7 @@ async def get_trading_results(
     stmp = stmp.limit(limit).offset(offset)
 
     results = await db.scalars(stmp)
-    if results is None:
+    list_results = results.all()
+    if not list_results:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="There are no trading results!")
-    return results.all()
+    return list_results
